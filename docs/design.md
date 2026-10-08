@@ -1,10 +1,10 @@
 # Epochs Unbound: Design Document
 
-Status: draft v0.1 (2026-10-08)
+Status: draft v0.2 (2026-10-08)
 
 ## 1. Vision
 
-A real-time civilisation strategy game in the spirit of *Rise of Nations*. The player leads one society from its first settlement into the space age. There are no fixed caps: the world, the number of cities and the population grow as far as the player's people, resources and infrastructure can sustain them.
+A real-time civilisation strategy game in the spirit of *Rise of Nations*. The player leads one society from its first settlement through the space age and into the age of superintelligence. There are no fixed caps: the world, the number of cities and the population grow as far as the player's people, resources and infrastructure can sustain them.
 
 Three ideas carry the design:
 
@@ -40,7 +40,11 @@ Technology is researched continuously. Eras are milestones that unlock new build
 | 8 | Modern | Oil, motor transport, air forces, radio, mechanised war |
 | 9 | Atomic | Nuclear power, missiles, jets, mass production |
 | 10 | Information | Computers, satellites, guided missiles, global trade networks |
-| 11 | Space | Launch sites, orbital infrastructure, space exploration victory |
+| 11 | Space | Launch sites, orbital infrastructure, space exploration |
+| 12 | Artificial Intelligence | AI-assisted research and logistics, automated factories, autonomous units and drones, data centres as a new power-hungry building |
+| 13 | Superintelligence | Self-improving research, near-full automation of labour, megaprojects, Superintelligence project as a victory path, new alignment and control risks |
+
+The last two eras change the role of people. Automation can replace workers in most jobs, so population pressure shifts from labour to compute, power and stability. Unaligned or poorly controlled AI is a risk the player must manage (see 5.14).
 
 ## 4. Core loop
 
@@ -94,7 +98,18 @@ Technology is researched continuously. Eras are milestones that unlock new build
 ### 5.7 Research
 
 - Research points come from scholars, universities and labs (all staffed by citizens).
+Research happens at two levels.
+
+**National research** (libraries, universities, labs):
 - A technology web, not a single line; eras unlock when enough of the era's technologies are known.
+- Covers broad advances: new eras, new building types, new unit families, civic and military doctrine.
+
+**Building research** (in each building, as in *Rise of Nations*):
+- Every production, military and civic building has its own short upgrade line, researched in that building and paid for with resources and time.
+- Examples: a lumber camp researches better axes and then sawmills (more wood per worker); a farm researches crop rotation and irrigation; a barracks researches drill and better armour for its infantry; a market researches caravans and banking; a temple researches its faith tiers (see 5.13).
+- A building upgrade applies to every building of that type in the nation once researched, so the player researches it once, not per city.
+- Each upgrade line is gated by era and sometimes by a national technology, so the two levels feed each other.
+- Upgrade lines are defined in data alongside the building (see section 7).
 
 ### 5.8 Military
 
@@ -121,9 +136,35 @@ Technology is researched continuously. Eras are milestones that unlock new build
 - Satellites: reveal the map, improve communications and enable guided weapons.
 - Space programme: a chain of launch, orbital and exploration projects; one of the victory paths.
 
+### 5.12 Markets and commerce
+
+- The **market** is a city's commercial hub, available from the Classical era.
+- **Exchange**: buy and sell resources for money. Prices follow supply and demand across the nation, so dumping one resource drives its price down.
+- **Caravans and merchants**: a market sends caravans (later merchant ships, trains, cargo planes) along trade routes to other cities and to foreign nations. Income grows with distance and the size of both cities.
+- **Commerce limit**: how much money a nation can earn per minute is capped by its markets and their research, so commerce scales with infrastructure like everything else.
+- **Market research** (see 5.7): caravan speed, banking, stock exchange, global finance.
+- Markets are where the economic victory is won (see section 6).
+
+### 5.13 Temples and faith
+
+- The **temple** is a city's religious and cultural centre, available from the Settlement era as a shrine and growing into temples, cathedrals and later cultural institutions.
+- **Stability**: temples raise stability in their city, which reduces unrest, desertion and migration away.
+- **Borders and influence**: faith extends national borders and can draw neighbouring towns and migrants towards the player's culture.
+- **Defence**: enemy units in the player's territory suffer attrition, increased by temple research.
+- **Faith research** (see 5.7): each temple tier unlocks stronger stability, larger border push and higher attrition.
+- In later eras faith gradually blends into culture and ideology (media, education), but the building keeps the same role.
+
+### 5.14 Artificial intelligence and superintelligence
+
+- **AI era**: data centres turn power into compute. Compute speeds up research, runs automated factories and logistics, and powers drones and autonomous units. Automated jobs no longer need citizens, which frees people but can cause unemployment and instability if housing, jobs and welfare don't keep up.
+- **Superintelligence era**: compute starts improving research by itself. The player chooses how much autonomy to grant: more autonomy gives faster progress but raises the risk of a misaligned AI incident (sabotaged infrastructure, rogue units, collapse of trust).
+- **Alignment** is a resource line of its own: safety research, oversight institutions and treaties with other nations keep risk down.
+- Completing the **Superintelligence project** with risk under control is a victory path.
+
 ## 6. Game modes
 
 - **Sandbox / continuous empire**: start from one settlement, no time limit, play as long as you want.
+- **Victory paths in sandbox**: conquest (take every rival capital), economic (dominate world trade through markets), space (complete the space programme) and superintelligence (complete the Superintelligence project safely). Players can turn individual paths off.
 - **Scenarios**: authored or generated objectives (survive a winter, win a war, reach orbit first) on a set map.
 
 ## 7. Technical approach
@@ -139,13 +180,13 @@ Technology is researched continuously. Eras are milestones that unlock new build
 
 1. **M0 Foundations**: Unity project, chunked terrain that generates as you explore, RTS camera, fixed-step simulation clock.
 2. **M1 First settlement**: one town centre, citizens who are born, age and take jobs, a food and wood loop, housing limits.
-3. **M2 Expansion**: multiple cities, roads, migration between cities, stone and metal, basic research.
+3. **M2 Expansion**: multiple cities, roads, migration between cities, stone and metal, national research and the first building upgrades, temples.
 4. **M3 Conflict**: recruitment from the workforce, equipment and supply, one rival AI nation, basic combat.
-5. **M4 Ages**: era progression through Medieval, trade and diplomacy.
-6. Later milestones add rail, power grids, aviation, missiles and space, each as its own slice.
+5. **M4 Ages**: era progression through Medieval, markets and trade, diplomacy.
+6. Later milestones add rail, power grids, aviation, missiles, space, AI and superintelligence, each as its own slice.
 
-## 9. Open questions
+## 9. Decisions
 
-- How much direct control does the player have over individual citizens versus job quotas per building?
-- Victory conditions in sandbox mode: space only, or also conquest, economic and cultural paths?
-- Population scale target for M1–M3 (e.g. 10k citizens at 60 fps on mid-range hardware) to set performance budgets.
+- **Citizen control**: hybrid. Buildings have job quotas that free citizens fill automatically; the player can also select citizens and give them direct orders, which matters most in the early eras and in emergencies.
+- **Victory**: several paths (conquest, economic, space, superintelligence); see section 6.
+- **Performance target for M1–M3**: 10,000 citizens at 60 fps on a mid-range PC. Distant citizens are grouped into cohorts, so later eras can go beyond this.
