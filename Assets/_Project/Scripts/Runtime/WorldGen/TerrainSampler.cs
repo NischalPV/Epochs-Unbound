@@ -61,7 +61,7 @@ namespace EpochsUnbound.WorldGen
         {
             if (ground < 0f) return Biome.Ocean;
             Climate(world, ground, p, out float t, out float m);
-            if (t < 0.06f) return Biome.Snow;
+            if (t < 0.06f && ground > p.MountainHeight * 0.2f) return Biome.Snow;
             if (upY < 0.8f || ground > p.MountainHeight * 0.45f) return Biome.Mountain;
             if (ground < 1.5f) return Biome.Beach;
             if (t < 0.33f) return Biome.Tundra;
@@ -89,7 +89,7 @@ namespace EpochsUnbound.WorldGen
             col = math.lerp(col, new float3(0.86f, 0.80f, 0.60f), 1f - math.smoothstep(0.8f, 2f, ground));           // beach
             float rock = math.max(1f - math.smoothstep(0.72f, 0.88f, upY), math.smoothstep(0.35f, 0.5f, ground / p.MountainHeight));
             col = math.lerp(col, new float3(0.48f, 0.45f, 0.42f), rock);                                                 // rock
-            col = math.lerp(col, new float3(0.95f, 0.96f, 0.98f), 1f - math.smoothstep(0.02f, 0.08f, t));           // snow
+            col = math.lerp(col, new float3(0.95f, 0.96f, 0.98f), (1f - math.smoothstep(0.02f, 0.08f, t)) * math.smoothstep(0.12f, 0.25f, ground / p.MountainHeight)); // snow only on high ground; cold lowlands stay tundra
             return ToColour(col);
         }
 

@@ -73,6 +73,26 @@ namespace EpochsUnbound.Tests
 
         [TestCase(12345u)]
         [TestCase(1u)]
+        public void ColdLowlandsAreTundraNotSnow(uint seed)
+        {
+            var p = Params(seed);
+            int cold = 0;
+            foreach (var g in Grid())
+            {
+                float h = TerrainSampler.GroundHeight(g, p);
+                if (h < 3f || h > p.PlainsHeight) continue;
+                TerrainSampler.Climate(g, h, p, out float t, out _);
+                if (t >= 0.33f) continue;
+                cold++;
+                Assert.AreEqual(Biome.Tundra, TerrainSampler.Classify(g, h, 1f, p), $"at {g}");
+                Color32 c = TerrainSampler.BiomeColour(g, h, 1f, p);
+                Assert.Less((c.r + c.g + c.b) / 3f, 200f, $"lowland at {g} is near-white");
+            }
+            Assert.Greater(cold, 10, "expected some cold lowland");
+        }
+
+        [TestCase(12345u)]
+        [TestCase(1u)]
         public void SpawnIsOnLandNearTheCoast(uint seed)
         {
             var p = Params(seed);
