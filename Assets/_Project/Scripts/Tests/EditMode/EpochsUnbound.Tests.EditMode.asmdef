@@ -4,6 +4,8 @@
     "references": [
         "EpochsUnbound",
         "Unity.Mathematics",
+        "Unity.Entities",
+        "Unity.Collections",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

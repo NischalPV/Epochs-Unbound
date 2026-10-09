@@ -1,4 +1,5 @@
 using EpochsUnbound.CameraControl;
+using EpochsUnbound.Settlement;
 using EpochsUnbound.Simulation;
 using EpochsUnbound.WorldGen;
 using UnityEditor;
@@ -27,14 +28,13 @@ namespace EpochsUnbound.Editor
             var world = LoadOrCreate<WorldSettings>($"{Root}/Settings/WorldSettings.asset");
             var cam = LoadOrCreate<CameraSettings>($"{Root}/Settings/CameraSettings.asset");
 
-            var matPath = $"{Root}/Materials/Terrain.mat";
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-            if (mat == null)
-            {
-                mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                mat.SetFloat("_Smoothness", 0.05f);
-                AssetDatabase.CreateAsset(mat, matPath);
-            }
+            var settlement = LoadOrCreate<SettlementSettings>($"{Root}/Settings/SettlementSettings.asset");
+
+            var mat = LoadOrCreateMaterial("Terrain");
+            var buildingMat = LoadOrCreateMaterial("Building");
+            var citizenMat = LoadOrCreateMaterial("Citizen");
+            citizenMat.enableInstancing = true;
+            EditorUtility.SetDirty(citizenMat);
             world.TerrainMaterial = mat;
             EditorUtility.SetDirty(world);
 
@@ -61,10 +61,31 @@ namespace EpochsUnbound.Editor
             clock.Settings = sim;
             clock.Streamer = streamer;
 
+            var settlementGo = new GameObject("Settlement");
+            var citizens = settlementGo.AddComponent<CitizenRenderer>();
+            citizens.Material = citizenMat;
+            var controller = settlementGo.AddComponent<SettlementController>();
+            controller.Settings = settlement;
+            controller.World = world;
+            controller.Rig = rig;
+            controller.Citizens = citizens;
+            controller.BuildingMaterial = buildingMat;
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectSetup] Main scene built at " + ScenePath);
+        }
+
+        static Material LoadOrCreateMaterial(string name)
+        {
+            var path = $"{Root}/Materials/{name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            mat.SetFloat("_Smoothness", 0.05f);
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
         }
 
         static T LoadOrCreate<T>(string path) where T : ScriptableObject

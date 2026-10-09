@@ -5,6 +5,7 @@
         "EpochsUnbound",
         "Unity.Entities",
         "Unity.Collections",
+        "Unity.Mathematics",
         "UnityEngine.TestRunner"
     ],
     "overrideReferences": true,

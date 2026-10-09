@@ -9,7 +9,7 @@ See [docs/design.md](docs/design.md) for the design document and milestone plan.
 
 ## Status
 
-Milestone M0 (foundations): Unity 6000.5.7f1 project with chunked procedural terrain streamed around the camera, a free RTS camera and a fixed-step simulation clock.
+Milestone M1 (first settlement) on top of M0 (foundations: streamed procedural world with continents, oceans and biomes, RTS camera, fixed-step simulation clock).
 
 ## Running
 
@@ -23,6 +23,13 @@ Open the repo folder in Unity 6000.5.7f1, open `Assets/_Project/Scenes/Main.unit
 | Middle mouse drag | Tilt and rotate |
 | Space | Pause simulation |
 | 1-4 | Simulation speed x1, x2, x4, x8 |
+| T / H / F / L or HUD buttons | Place Town Centre / House / Farm / Lumber Camp (Shift keeps placing, right click cancels) |
+| Left click | Select a citizen (Shift adds) |
+| Right click with citizens selected | On a farm or lumber camp: work there. On the ground: walk there and stay |
+| Esc | Cancel placement and clear selection |
+| F9 | Stress test: spawn 10,000 walking citizens |
+
+The game starts in Town Centre placement: pick flat, dry land. Ten citizens arrive, then build farms on fertile land (grassland is best) and lumber camps near forest. Idle adults fill job slots automatically; births need free housing and a food reserve; citizens die of old age or after half a year of starvation.
 
 Tuning lives in `Assets/_Project/Settings` (world seed, chunk size, noise, streaming radius, camera speeds, tick rate). `Epochs Unbound > Rebuild Main Scene` regenerates the scene.
 
@@ -31,6 +38,7 @@ Tuning lives in `Assets/_Project/Settings` (world seed, chunk size, noise, strea
 - `Assets/_Project/Scripts/Runtime/Simulation` - `SimClock` and `SimTickSystemGroup`: put deterministic ECS systems in this group; it runs once per fixed tick.
 - `Assets/_Project/Scripts/Runtime/WorldGen` - chunk maths, Burst terrain jobs, chunk streaming.
 - `Assets/_Project/Scripts/Runtime/CameraControl` - RTS camera.
+- `Assets/_Project/Scripts/Runtime/Settlement` - citizens and buildings as ECS entities, Burst systems on the sim tick (life, census, assignment, motion, economy, births), instanced citizen rendering, placement/selection UI. Tuning in `SettlementSettings.asset`.
 - `Assets/_Project/Scripts/Tests` - EditMode and PlayMode tests.
 
 Tests from the command line:

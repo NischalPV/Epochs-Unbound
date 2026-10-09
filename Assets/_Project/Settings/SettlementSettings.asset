@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8fff3abcb711734e89069121aa00e55, type: 3}
+  m_Name: SettlementSettings
+  m_EditorClassIdentifier: EpochsUnbound::EpochsUnbound.Settlement.SettlementSettings
+  TicksPerYear: 600
+  DayTicks: 1200
+  WorkFraction: 0.6
+  StartingCitizens: 10
+  AdultAge: 14
+  LifespanMean: 60
+  LifespanSpread: 12
+  BirthsPerAdultPerYear: 0.12
+  FoodPerCitizenPerYear: 1
+  FoodReserveYears: 0.5
+  StarveYears: 0.5
+  WalkSpeed: 6
+  StartFood: 25
+  StartWood: 150
+  Buildings:
+  - Name: Town Centre
+    Kind: 0
+    WoodCost: 0
+    Size: {x: 16, y: 8, z: 16}
+    Housing: 10
+    Jobs: 0
+    Produces: 0
+    OutputPerWorkerPerYear: 0
+    Colour: {r: 0.75, g: 0.68, b: 0.55, a: 1}
+  - Name: House
+    Kind: 1
+    WoodCost: 30
+    Size: {x: 6, y: 4, z: 6}
+    Housing: 6
+    Jobs: 0
+    Produces: 0
+    OutputPerWorkerPerYear: 0
+    Colour: {r: 0.8, g: 0.52, b: 0.36, a: 1}
+  - Name: Farm
+    Kind: 2
+    WoodCost: 40
+    Size: {x: 30, y: 0.6, z: 30}
+    Housing: 0
+    Jobs: 5
+    Produces: 1
+    OutputPerWorkerPerYear: 3
+    Colour: {r: 0.85, g: 0.78, b: 0.35, a: 1}
+  - Name: Lumber Camp
+    Kind: 3
+    WoodCost: 40
+    Size: {x: 10, y: 4, z: 8}
+    Housing: 0
+    Jobs: 5
+    Produces: 2
+    OutputPerWorkerPerYear: 20
+    Colour: {r: 0.45, g: 0.3, b: 0.18, a: 1}

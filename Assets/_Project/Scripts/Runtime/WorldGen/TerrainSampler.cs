@@ -125,6 +125,31 @@ namespace EpochsUnbound.WorldGen
             return false;
         }
 
+        /// <summary>Ray-marches the visible surface (water counts as surface). No colliders needed.</summary>
+        public static bool Raycast(float3 origin, float3 dir, float maxDistance, in TerrainParams p, out float3 hit)
+        {
+            float prev = 0, t = 0;
+            while (t < maxDistance)
+            {
+                float3 q = origin + dir * t;
+                if (q.y <= SurfaceHeight(q.xz, p))
+                {
+                    for (int i = 0; i < 12; i++) // bisect between the last point above and the first below
+                    {
+                        float mid = (prev + t) * 0.5f;
+                        float3 m = origin + dir * mid;
+                        if (m.y <= SurfaceHeight(m.xz, p)) t = mid; else prev = mid;
+                    }
+                    hit = origin + dir * t;
+                    return true;
+                }
+                prev = t;
+                t += math.max(1f, t * 0.01f);
+            }
+            hit = default;
+            return false;
+        }
+
         static float2 Warp(float2 world, in TerrainParams p)
         {
             float2 q = world * p.WarpFrequency + p.WarpOffset;
