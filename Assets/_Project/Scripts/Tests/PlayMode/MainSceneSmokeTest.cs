@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using EpochsUnbound.Simulation;
 using EpochsUnbound.WorldGen;
 using NUnit.Framework;

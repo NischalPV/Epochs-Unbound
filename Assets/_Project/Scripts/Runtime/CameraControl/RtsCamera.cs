@@ -28,7 +28,8 @@ namespace EpochsUnbound.CameraControl
         {
             Camera = GetComponent<Camera>();
             _terrain = World.ToParams();
-            _focus = new float3(transform.position.x, 0, transform.position.z);
+            float2 spawn = TerrainSampler.FindSpawn(_terrain);
+            _focus = new float3(spawn.x, TerrainSampler.SurfaceHeight(spawn, _terrain), spawn.y);
             _yaw = transform.eulerAngles.y;
             _pitch = Settings.StartPitch;
             _distance = _targetDistance = Settings.StartDistance;

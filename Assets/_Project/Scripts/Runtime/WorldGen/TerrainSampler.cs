@@ -6,61 +6,174 @@ namespace EpochsUnbound.WorldGen
     /// <summary>Blittable copy of <see cref="WorldSettings"/> for Burst jobs.</summary>
     public struct TerrainParams
     {
-        public float2 HeightOffset, MoistureOffset;
-        public float Frequency, MoistureFrequency, HeightScale, SeaLevel01;
-        public int Octaves;
+        public float2 ContinentOffset, WarpOffset, RangeOffset, RidgeOffset, DetailOffset, TemperatureOffset, MoistureOffset;
+        public float ContinentFrequency, WarpFrequency, WarpStrength, RangeFrequency, RidgeFrequency, DetailFrequency, ClimateFrequency;
+        public float OceanDepth, PlainsHeight, HillHeight, MountainHeight;
     }
 
-    /// <summary>Pure, Burst-compatible terrain functions. Sea level is y = 0.</summary>
+    public enum Biome : byte { Ocean, Beach, Desert, Savanna, Grassland, Forest, Swamp, Tundra, Snow, Mountain }
+
+    /// <summary>
+    /// Pure, Burst-compatible terrain functions. Sea level is y = 0.
+    /// Layers, largest first: domain-warped continents (oceans vs land), mountain-range regions with
+    /// ridged chains, rolling-hill regions, otherwise plains. Climate (temperature, moisture) picks the biome.
+    /// </summary>
     public static class TerrainSampler
     {
         /// <summary>Raw ground height in metres; negative values are under water.</summary>
         public static float GroundHeight(float2 world, in TerrainParams p)
         {
-            float2 q = world * p.Frequency + p.HeightOffset;
-            float sum = 0, amp = 1, norm = 0;
-            for (int i = 0; i < p.Octaves; i++)
+            float2 w = Warp(world, p);
+            float c = Continentalness(w, p);
+
+            if (c < 0f)
             {
-                sum += noise.snoise(q) * amp;
-                norm += amp;
-                amp *= 0.5f;
-                q *= 2.03f;
+                // Shallow shelf near the coast, deep ocean further out.
+                float depth = math.pow(math.saturate(-c / 0.45f), 0.8f);
+                return -p.OceanDepth * depth - 0.5f;
             }
-            float e = math.saturate(sum / norm * 0.5f + 0.5f); // 0..1
-            e = math.pow(e, 1.4f);                             // flatter lowlands, sharper peaks
-            return (e - p.SeaLevel01) * p.HeightScale;
+
+            float inland = math.smoothstep(0f, 0.25f, c);
+            float plains = inland * p.PlainsHeight * math.saturate(c * 2f);
+
+            float hillMask = math.smoothstep(0.05f, 0.45f, Fbm(w * (p.RangeFrequency * 2.3f) + p.DetailOffset * 0.37f, 2));
+            float hills = (Fbm(world * p.DetailFrequency + p.DetailOffset, 4) * 0.5f + 0.5f) * hillMask * inland * p.HillHeight;
+
+            float rangeMask = math.smoothstep(0.2f, 0.5f, Fbm(w * p.RangeFrequency + p.RangeOffset, 3)) * math.smoothstep(0.08f, 0.3f, c);
+            float mountains = Ridged(w * p.RidgeFrequency + p.RidgeOffset, 5) * rangeMask * p.MountainHeight;
+
+            return 0.5f + plains + hills + mountains;
         }
 
         /// <summary>Visible surface height: ground or the water surface, whichever is higher.</summary>
         public static float SurfaceHeight(float2 world, in TerrainParams p) => math.max(0f, GroundHeight(world, p));
 
-        public static Color32 BiomeColour(float2 world, float ground, in TerrainParams p)
+        /// <summary>Temperature and moisture in 0..1; temperature drops with altitude.</summary>
+        public static void Climate(float2 world, float ground, in TerrainParams p, out float temperature, out float moisture)
+        {
+            temperature = math.saturate(Fbm(world * p.ClimateFrequency + p.TemperatureOffset, 3) * 1.2f + 0.58f)
+                          - math.max(0f, ground) / p.MountainHeight * 0.7f;
+            moisture = math.saturate(Fbm(world * (p.ClimateFrequency * 1.7f) + p.MoistureOffset, 3) * 1.3f + 0.5f);
+        }
+
+        /// <summary>Dominant biome at a point; <paramref name="upY"/> is the surface normal's Y (1 = flat).</summary>
+        public static Biome Classify(float2 world, float ground, float upY, in TerrainParams p)
+        {
+            if (ground < 0f) return Biome.Ocean;
+            Climate(world, ground, p, out float t, out float m);
+            if (t < 0.06f) return Biome.Snow;
+            if (upY < 0.8f || ground > p.MountainHeight * 0.45f) return Biome.Mountain;
+            if (ground < 1.5f) return Biome.Beach;
+            if (t < 0.33f) return Biome.Tundra;
+            if (t < 0.66f) return m < 0.66f ? Biome.Grassland : Biome.Forest;
+            return m < 0.33f ? Biome.Desert : m < 0.66f ? Biome.Savanna : Biome.Swamp;
+        }
+
+        /// <summary>Blended biome colour, so transitions between biomes are gradual.</summary>
+        public static Color32 BiomeColour(float2 world, float ground, float upY, in TerrainParams p)
         {
             if (ground < 0f)
             {
-                float depth = math.saturate(-ground / (p.HeightScale * 0.25f));
-                return Lerp(new float3(0.20f, 0.48f, 0.62f), new float3(0.05f, 0.16f, 0.35f), depth);
+                float depth = math.saturate(-ground / p.OceanDepth);
+                return ToColour(math.lerp(new float3(0.22f, 0.52f, 0.64f), new float3(0.04f, 0.13f, 0.32f), math.sqrt(depth)));
             }
 
-            float h = ground / (p.HeightScale * (1f - p.SeaLevel01)); // 0 at sea level, 1 at max height
-            float moisture = noise.snoise(world * p.MoistureFrequency + p.MoistureOffset) * 0.5f + 0.5f;
+            Climate(world, ground, p, out float t, out float m);
 
-            if (h < 0.015f) return Lerp(new float3(0.82f, 0.77f, 0.56f), new float3(0.76f, 0.70f, 0.50f), moisture); // beach
-            if (h < 0.35f)
-            {
-                var dry = new float3(0.66f, 0.62f, 0.36f);
-                var grass = new float3(0.36f, 0.56f, 0.24f);
-                var forest = new float3(0.16f, 0.36f, 0.16f);
-                return moisture < 0.5f ? Lerp(dry, grass, moisture * 2f) : Lerp(grass, forest, moisture * 2f - 1f);
-            }
-            if (h < 0.55f) return Lerp(new float3(0.30f, 0.40f, 0.22f), new float3(0.45f, 0.40f, 0.33f), (h - 0.35f) / 0.2f); // hills
-            if (h < 0.75f) return Lerp(new float3(0.45f, 0.40f, 0.33f), new float3(0.52f, 0.52f, 0.52f), (h - 0.55f) / 0.2f); // rock
-            return Lerp(new float3(0.75f, 0.75f, 0.78f), new float3(0.96f, 0.96f, 0.98f), math.saturate((h - 0.75f) / 0.1f)); // snow
+            // 3x3 climate table: rows cold / temperate / hot, columns dry / medium / wet.
+            float3 cold = Lerp3(new float3(0.60f, 0.58f, 0.48f), new float3(0.45f, 0.50f, 0.38f), new float3(0.20f, 0.32f, 0.22f), m);
+            float3 temperate = Lerp3(new float3(0.58f, 0.60f, 0.34f), new float3(0.40f, 0.58f, 0.25f), new float3(0.15f, 0.36f, 0.15f), m);
+            float3 hot = Lerp3(new float3(0.88f, 0.77f, 0.52f), new float3(0.72f, 0.64f, 0.32f), new float3(0.27f, 0.35f, 0.20f), m);
+            float3 col = Lerp3(cold, temperate, hot, t);
+
+            col = math.lerp(col, new float3(0.86f, 0.80f, 0.60f), 1f - math.smoothstep(0.8f, 2f, ground));           // beach
+            float rock = math.max(1f - math.smoothstep(0.72f, 0.88f, upY), math.smoothstep(0.35f, 0.5f, ground / p.MountainHeight));
+            col = math.lerp(col, new float3(0.48f, 0.45f, 0.42f), rock);                                                 // rock
+            col = math.lerp(col, new float3(0.95f, 0.96f, 0.98f), 1f - math.smoothstep(0.02f, 0.08f, t));           // snow
+            return ToColour(col);
         }
 
-        static Color32 Lerp(float3 a, float3 b, float t)
+        /// <summary>
+        /// Searches outward from the origin for flat land a short way from the sea, so the game opens on a coast.
+        /// </summary>
+        public static float2 FindSpawn(in TerrainParams p, float step = 500f, float maxRadius = 150_000f)
         {
-            var c = math.lerp(a, b, math.saturate(t)) * 255f;
+            for (float r = 0; r <= maxRadius; r += step)
+            {
+                int samples = math.max(1, (int)(2 * math.PI * r / step));
+                for (int i = 0; i < samples; i++)
+                {
+                    float a = i * 2f * math.PI / samples;
+                    var pos = new float2(math.cos(a), math.sin(a)) * r;
+                    if (IsGoodSpawn(pos, p)) return pos;
+                }
+            }
+            return float2.zero;
+        }
+
+        public static bool IsGoodSpawn(float2 pos, in TerrainParams p)
+        {
+            float h = GroundHeight(pos, p);
+            if (h < 3f || h > p.PlainsHeight + 10f) return false;
+            Climate(pos, h, p, out float t, out _);
+            if (t < 0.33f) return false;
+            for (int d = 0; d < 8; d++)
+            {
+                float a = d * math.PI / 4f;
+                if (GroundHeight(pos + new float2(math.cos(a), math.sin(a)) * 1500f, p) < 0f) return true;
+            }
+            return false;
+        }
+
+        static float2 Warp(float2 world, in TerrainParams p)
+        {
+            float2 q = world * p.WarpFrequency + p.WarpOffset;
+            return world + p.WarpStrength * new float2(Fbm(q, 3), Fbm(q + new float2(31.7f, -17.3f), 3));
+        }
+
+        static float Continentalness(float2 warped, in TerrainParams p) =>
+            Fbm(warped * p.ContinentFrequency + p.ContinentOffset, 4) * 1.4f + 0.06f;
+
+        /// <summary>Fractal simplex noise, roughly -1..1.</summary>
+        static float Fbm(float2 q, int octaves)
+        {
+            float sum = 0, amp = 1, norm = 0;
+            for (int i = 0; i < octaves; i++)
+            {
+                sum += noise.snoise(q) * amp;
+                norm += amp;
+                amp *= 0.5f;
+                q = q * 2.03f + 7.1f;
+            }
+            return sum / norm;
+        }
+
+        /// <summary>Ridged multifractal, 0..1: sharp crests along noise zero-lines give long mountain chains.</summary>
+        static float Ridged(float2 q, int octaves)
+        {
+            float sum = 0, amp = 1, norm = 0, prev = 1;
+            for (int i = 0; i < octaves; i++)
+            {
+                float n = 1f - math.abs(noise.snoise(q));
+                n *= n;
+                sum += n * amp * prev;
+                norm += amp;
+                prev = n;
+                amp *= 0.5f;
+                q = q * 2.1f + 3.3f;
+            }
+            return sum / norm;
+        }
+
+        static float3 Lerp3(float3 a, float3 b, float3 c, float x)
+        {
+            x = math.saturate(x);
+            return x < 0.5f ? math.lerp(a, b, math.smoothstep(0f, 1f, x * 2f)) : math.lerp(b, c, math.smoothstep(0f, 1f, x * 2f - 1f));
+        }
+
+        static Color32 ToColour(float3 c)
+        {
+            c = math.saturate(c) * 255f;
             return new Color32((byte)c.x, (byte)c.y, (byte)c.z, 255);
         }
     }

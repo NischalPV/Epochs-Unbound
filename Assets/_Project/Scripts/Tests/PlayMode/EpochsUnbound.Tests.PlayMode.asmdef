@@ -1,4 +1,4 @@
-﻿{
+{
     "name": "EpochsUnbound.Tests.PlayMode",
     "rootNamespace": "EpochsUnbound.Tests",
     "references": [

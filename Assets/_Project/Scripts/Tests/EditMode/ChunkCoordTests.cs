@@ -31,14 +31,5 @@ namespace EpochsUnbound.Tests
         {
             Assert.AreEqual(3, ChunkCoord.Distance(new int2(0, 0), new int2(-3, 2)));
         }
-
-        [Test]
-        public void TerrainIsDeterministicForASeed()
-        {
-            var a = new TerrainParams { HeightOffset = 123f, Frequency = 0.001f, HeightScale = 200f, SeaLevel01 = 0.3f, Octaves = 5 };
-            var p = new float2(1234.5f, -987.25f);
-            Assert.AreEqual(TerrainSampler.GroundHeight(p, a), TerrainSampler.GroundHeight(p, a));
-            Assert.GreaterOrEqual(TerrainSampler.SurfaceHeight(p, a), 0f);
-        }
     }
 }

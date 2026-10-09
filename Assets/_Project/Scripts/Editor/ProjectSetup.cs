@@ -1,4 +1,4 @@
-﻿using EpochsUnbound.CameraControl;
+using EpochsUnbound.CameraControl;
 using EpochsUnbound.Simulation;
 using EpochsUnbound.WorldGen;
 using UnityEditor;

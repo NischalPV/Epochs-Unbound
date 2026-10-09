@@ -199,9 +199,10 @@ namespace EpochsUnbound.WorldGen
                 float hd = TerrainSampler.SurfaceHeight(world - new float2(0, Step), P);
                 float hu = TerrainSampler.SurfaceHeight(world + new float2(0, Step), P);
 
+                float3 normal = math.normalize(new float3(hl - hr, 2f * Step, hd - hu));
                 Positions[i] = new float3(local.x, math.max(0f, ground), local.y);
-                Normals[i] = math.normalize(new float3(hl - hr, 2f * Step, hd - hu));
-                Colours[i] = TerrainSampler.BiomeColour(world, ground, P);
+                Normals[i] = normal;
+                Colours[i] = TerrainSampler.BiomeColour(world, ground, normal.y, P);
             }
         }
     }

@@ -1,4 +1,3 @@
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace EpochsUnbound.WorldGen
@@ -11,11 +10,27 @@ namespace EpochsUnbound.WorldGen
         [Min(16)] public float ChunkSize = 256f;
         [Tooltip("Quads per chunk side.")]
         [Range(8, 254)] public int Resolution = 64;
-        public float HeightScale = 260f;
-        [Range(0f, 1f)] public float SeaLevel01 = 0.3f;
-        public float Frequency = 0.0011f;
-        [Range(1, 10)] public int Octaves = 6;
-        public float MoistureFrequency = 0.0006f;
+
+        [Header("Geography (frequencies are 1 / feature size in metres)")]
+        [Tooltip("Continents and oceans. 0.000025 = features about 40 km across.")]
+        public float ContinentFrequency = 0.000025f;
+        [Tooltip("Domain warp that bends coastlines and ranges.")]
+        public float WarpFrequency = 0.00008f;
+        public float WarpStrength = 4000f;
+        [Tooltip("Regions that have mountain ranges.")]
+        public float RangeFrequency = 0.00006f;
+        [Tooltip("Spacing of individual ridges inside a range.")]
+        public float RidgeFrequency = 0.00025f;
+        [Tooltip("Rolling hills and small bumps.")]
+        public float DetailFrequency = 0.0015f;
+        [Tooltip("Temperature and moisture zones.")]
+        public float ClimateFrequency = 0.00002f;
+
+        [Header("Heights (metres)")]
+        public float OceanDepth = 200f;
+        public float PlainsHeight = 30f;
+        public float HillHeight = 60f;
+        public float MountainHeight = 900f;
 
         [Header("Streaming")]
         [Min(1)] public int MinLoadRadius = 3;
@@ -31,13 +46,24 @@ namespace EpochsUnbound.WorldGen
             var rng = new Unity.Mathematics.Random(Seed == 0 ? 1u : Seed);
             return new TerrainParams
             {
-                HeightOffset = rng.NextFloat2(-10000f, 10000f),
-                MoistureOffset = rng.NextFloat2(-10000f, 10000f),
-                Frequency = Frequency,
-                MoistureFrequency = MoistureFrequency,
-                HeightScale = HeightScale,
-                SeaLevel01 = SeaLevel01,
-                Octaves = Octaves,
+                ContinentOffset = rng.NextFloat2(-1000f, 1000f),
+                WarpOffset = rng.NextFloat2(-1000f, 1000f),
+                RangeOffset = rng.NextFloat2(-1000f, 1000f),
+                RidgeOffset = rng.NextFloat2(-1000f, 1000f),
+                DetailOffset = rng.NextFloat2(-1000f, 1000f),
+                TemperatureOffset = rng.NextFloat2(-1000f, 1000f),
+                MoistureOffset = rng.NextFloat2(-1000f, 1000f),
+                ContinentFrequency = ContinentFrequency,
+                WarpFrequency = WarpFrequency,
+                WarpStrength = WarpStrength,
+                RangeFrequency = RangeFrequency,
+                RidgeFrequency = RidgeFrequency,
+                DetailFrequency = DetailFrequency,
+                ClimateFrequency = ClimateFrequency,
+                OceanDepth = OceanDepth,
+                PlainsHeight = PlainsHeight,
+                HillHeight = HillHeight,
+                MountainHeight = MountainHeight,
             };
         }
     }

@@ -15,11 +15,17 @@ MonoBehaviour:
   Seed: 12345
   ChunkSize: 256
   Resolution: 64
-  HeightScale: 260
-  SeaLevel01: 0.3
-  Frequency: 0.0011
-  Octaves: 6
-  MoistureFrequency: 0.0006
+  ContinentFrequency: 0.000025
+  WarpFrequency: 0.00008
+  WarpStrength: 4000
+  RangeFrequency: 0.00006
+  RidgeFrequency: 0.00025
+  DetailFrequency: 0.0015
+  ClimateFrequency: 0.00002
+  OceanDepth: 200
+  PlainsHeight: 30
+  HillHeight: 60
+  MountainHeight: 900
   MinLoadRadius: 3
   MaxLoadRadius: 12
   UnloadMargin: 2
