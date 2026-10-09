@@ -30,7 +30,9 @@ namespace EpochsUnbound.Settlement
         public int DayTicks = 1200;
         [Range(0.1f, 0.9f)] public float WorkFraction = 0.6f;
 
-        [Header("Citizens (years)")]
+        [Header("Citizens (ages in life-years)")]
+        [Tooltip("Citizens age this many life-years per game year. 7 with a 7-minute year = 1 life-year per minute at x1.")]
+        [Min(0.01f)] public float LifeYearsPerGameYear = 7f;
         public int StartingCitizens = 10;
         public float AdultAge = 14f;
         public float LifespanMean = 60f;
@@ -59,12 +61,16 @@ namespace EpochsUnbound.Settlement
 
         public BuildingDef Def(BuildingKind kind) => Array.Find(Buildings, b => b.Kind == kind);
 
-        public SettlementRules ToRules() => new()
+        public SettlementRules ToRules()
         {
+            float lifeYear = TicksPerYear / LifeYearsPerGameYear;
+            return new SettlementRules
+            {
             TicksPerYear = TicksPerYear,
-            AdultAgeTicks = (int)(AdultAge * TicksPerYear),
-            LifespanMeanTicks = (int)(LifespanMean * TicksPerYear),
-            LifespanSpreadTicks = (int)(LifespanSpread * TicksPerYear),
+            TicksPerLifeYear = lifeYear,
+            AdultAgeTicks = (int)(AdultAge * lifeYear),
+            LifespanMeanTicks = (int)(LifespanMean * lifeYear),
+            LifespanSpreadTicks = (int)(LifespanSpread * lifeYear),
             BirthsPerAdultPerTick = BirthsPerAdultPerYear / TicksPerYear,
             FoodPerCitizenPerTick = FoodPerCitizenPerYear / TicksPerYear,
             FoodReservePerCitizen = FoodReserveYears * FoodPerCitizenPerYear,
@@ -73,7 +79,8 @@ namespace EpochsUnbound.Settlement
             WalkSpeed = WalkSpeed,
             DayTicks = DayTicks,
             WorkFraction = WorkFraction,
-        };
+            };
+        }
 
         /// <summary>How well a site suits a building: farm fertility, lumber forest density, 1 otherwise. 0 = cannot build.</summary>
         public static float SiteYield(BuildingKind kind, float2 pos, in TerrainParams p)

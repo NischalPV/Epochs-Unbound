@@ -21,6 +21,7 @@ namespace EpochsUnbound.Settlement
     public struct SettlementRules : IComponentData
     {
         public int TicksPerYear;
+        public float TicksPerLifeYear;           // ages and lifespans are in life-years
         public int AdultAgeTicks;
         public int LifespanMeanTicks, LifespanSpreadTicks;
         public float BirthsPerAdultPerTick;

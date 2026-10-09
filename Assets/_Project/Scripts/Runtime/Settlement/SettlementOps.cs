@@ -56,7 +56,7 @@ namespace EpochsUnbound.Settlement
             {
                 Id = id,
                 AgeTicks = ageTicks,
-                LifespanTicks = math.max(lifespan, ageTicks + rules.TicksPerYear),
+                LifespanTicks = math.max(lifespan, ageTicks + (int)rules.TicksPerLifeYear),
                 Health = 1f,
             });
             var p = at + new float3(rng.NextFloat(-6f, 6f), 0, rng.NextFloat(-6f, 6f));
@@ -73,7 +73,7 @@ namespace EpochsUnbound.Settlement
             foreach (var e in entities)
             {
                 var rng = SimRandom.For(colony.NextCitizenId, 2);
-                int age = rules.AdultAgeTicks + rng.NextInt(0, 20 * rules.TicksPerYear);
+                int age = rules.AdultAgeTicks + rng.NextInt(0, (int)(10 * rules.TicksPerLifeYear));
                 var offset = rng.NextFloat2Direction() * math.sqrt(rng.NextFloat()) * spread;
                 InitCitizen(em, e, ref colony, rules, at + new float3(offset.x, 0, offset.y), age);
                 if (wander) OrderMove(em, e, at + new float3(rng.NextFloat(-spread, spread), 0, rng.NextFloat(-spread, spread)));

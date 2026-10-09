@@ -28,7 +28,8 @@ namespace EpochsUnbound.Tests
             _group.SortSystems();
             _group.Clock = new SimClock(20, 1);
             _settings = ScriptableObject.CreateInstance<SettlementSettings>();
-            _settings.TicksPerYear = 600; // short year keeps tests fast; rules are per year so behaviour is the same
+            _settings.TicksPerYear = 600;          // short year keeps tests fast; rules are per year so behaviour is the same
+            _settings.LifeYearsPerGameYear = 1f;   // ages in game years, so timing assertions read simply
             SettlementOps.CreateColony(Em, _settings, null);
         }
 
@@ -76,6 +77,19 @@ namespace EpochsUnbound.Tests
             SettlementOps.SpawnAdults(Em, 10, float3.zero, 10f);
             SetFood(food);
             return tc;
+        }
+
+        [Test]
+        public void DefaultTimingsAtX1()
+        {
+            var s = ScriptableObject.CreateInstance<SettlementSettings>();
+            var r = s.ToRules();
+            const int ticksPerMinute = 20 * 60;
+            Assert.AreEqual(7f, s.TicksPerYear / (float)ticksPerMinute, "game year = 7 min");
+            Assert.AreEqual(14f, r.AdultAgeTicks / (float)ticksPerMinute, 0.01f, "adult at life-age 14 = 14 min");
+            Assert.AreEqual(60f, r.LifespanMeanTicks / (float)ticksPerMinute, 0.01f, "mean lifespan 60 = 1 hour");
+            Assert.AreEqual(3.5f, 1f / r.StarveHealthPerTick / ticksPerMinute, 0.01f, "starvation kills in half a game year");
+            Object.DestroyImmediate(s);
         }
 
         [Test]

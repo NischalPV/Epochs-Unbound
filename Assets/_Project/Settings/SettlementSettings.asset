@@ -16,6 +16,7 @@ MonoBehaviour:
   DayTicks: 1200
   WorkFraction: 0.6
   StartingCitizens: 10
+  LifeYearsPerGameYear: 7
   AdultAge: 14
   LifespanMean: 60
   LifespanSpread: 12

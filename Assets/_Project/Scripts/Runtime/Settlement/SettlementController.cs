@@ -281,7 +281,8 @@ namespace EpochsUnbound.Settlement
             if (!_em.Exists(e)) return "";
             var c = _em.GetComponentData<Citizen>(e);
             string job = _em.HasComponent<Building>(c.Job) ? _em.GetComponentData<Building>(c.Job).Kind.ToString() : "none";
-            string first = $"Citizen #{c.Id}: age {c.AgeTicks / (float)_rules.TicksPerYear:0}, {c.Task}, job {job}, health {c.Health:P0}";
+            string stage = c.AgeTicks >= _rules.AdultAgeTicks ? "adult" : "child";
+            string first = $"Citizen #{c.Id} ({stage}): age {c.AgeTicks / _rules.TicksPerLifeYear:0}, {c.Task}, job {job}, health {c.Health:P0}";
             return Citizens.Selected.Count == 1 ? first : $"{Citizens.Selected.Count} selected. {first}";
         }
     }
