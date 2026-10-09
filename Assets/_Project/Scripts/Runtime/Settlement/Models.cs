@@ -4,15 +4,16 @@ using UnityEngine;
 namespace EpochsUnbound.Settlement
 {
     /// <summary>
-    /// Procedural low-poly models for buildings and citizens. Every part is coloured by pointing its UVs at one
-    /// texel of a 4x4 palette texture, so a model is a single mesh with a single material (instancing-friendly).
+    /// Procedural low-poly models for buildings, citizens and trees. Every part is coloured by pointing its UVs at one
+    /// texel of an 8x4 palette texture, so a model is a single mesh with a single material (instancing-friendly).
     /// Models are built at real size with their base at y = 0.
     /// </summary>
     // ponytail: placeholder art generated in code; swap for imported models (same footprints) when an art pass happens.
     public static class Models
     {
         public const int Wall = 0, Roof = 1, Wood = 2, Stone = 3, Glass = 4, Crop = 5, Wheat = 6, Soil = 7,
-                         Skin = 8, Hair = 9, Trousers = 10, ShirtRed = 11, ShirtBlue = 12, ShirtGreen = 13, ShirtOchre = 14, Cloth = 15;
+                         Skin = 8, Hair = 9, Trousers = 10, ShirtRed = 11, ShirtBlue = 12, ShirtGreen = 13, ShirtOchre = 14, Cloth = 15,
+                         Pine = 16, PineDark = 17, Leaf = 18, LeafDark = 19, Bark = 20;
 
         public static readonly int[] Shirts = { ShirtRed, ShirtBlue, ShirtGreen, ShirtOchre };
 
@@ -22,17 +23,21 @@ namespace EpochsUnbound.Settlement
             new(120, 170, 205, 255), new(88, 150, 60, 255), new(214, 180, 82, 255), new(112, 82, 52, 255),
             new(232, 186, 150, 255), new(58, 40, 30, 255), new(52, 60, 92, 255), new(190, 56, 48, 255),
             new(56, 98, 178, 255), new(62, 140, 74, 255), new(204, 146, 46, 255), new(236, 236, 230, 255),
+            new(38, 84, 46, 255), new(28, 64, 38, 255), new(74, 122, 44, 255), new(52, 98, 36, 255),
+            new(84, 60, 40, 255), new(0, 0, 0, 255), new(0, 0, 0, 255), new(0, 0, 0, 255),
+            new(0, 0, 0, 255), new(0, 0, 0, 255), new(0, 0, 0, 255), new(0, 0, 0, 255),
+            new(0, 0, 0, 255), new(0, 0, 0, 255), new(0, 0, 0, 255), new(0, 0, 0, 255),
         };
 
         public static Texture2D CreatePalette()
         {
-            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Palette" };
+            var tex = new Texture2D(8, 4, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Palette" };
             tex.SetPixels32(PaletteColours);
             tex.Apply(false, true);
             return tex;
         }
 
-        static Vector2 Uv(int colour) => new((colour % 4 + 0.5f) / 4f, (colour / 4 + 0.5f) / 4f);
+        static Vector2 Uv(int colour) => new((colour % 8 + 0.5f) / 8f, (colour / 8 + 0.5f) / 4f);
 
         // ---------- buildings ----------
 
@@ -118,6 +123,30 @@ namespace EpochsUnbound.Settlement
             var b = new Builder();
             b.Box(new Vector3(0, 0.5f, 0), Vector3.one, colour);
             return b.ToMesh("Block");
+        }
+
+        // ---------- trees ----------
+
+        /// <summary>Conifer about 9 m tall: trunk and three stacked cones.</summary>
+        public static Mesh PineTree()
+        {
+            var b = new Builder();
+            b.Cylinder(Vector3.zero, 0.22f, 2.2f, 6, Bark);
+            b.Cone(new Vector3(0, 1.6f, 0), 2.3f, 3.4f, 8, PineDark);
+            b.Cone(new Vector3(0, 3.6f, 0), 1.8f, 3.0f, 8, Pine);
+            b.Cone(new Vector3(0, 5.6f, 0), 1.2f, 3.3f, 8, Pine);
+            return b.ToMesh("Pine");
+        }
+
+        /// <summary>Broadleaf tree about 8 m tall: trunk and a lumpy crown of two faceted blobs.</summary>
+        public static Mesh BroadleafTree()
+        {
+            var b = new Builder();
+            b.Cylinder(Vector3.zero, 0.28f, 3.2f, 6, Bark);
+            b.Blob(new Vector3(0, 5.2f, 0), new Vector3(2.6f, 2.4f, 2.6f), Leaf);
+            b.Blob(new Vector3(0.9f, 4.4f, 0.6f), new Vector3(1.7f, 1.5f, 1.7f), LeafDark);
+            b.Blob(new Vector3(-0.8f, 4.6f, -0.7f), new Vector3(1.6f, 1.4f, 1.6f), LeafDark);
+            return b.ToMesh("Broadleaf");
         }
 
         // ---------- citizens ----------
@@ -213,6 +242,34 @@ namespace EpochsUnbound.Settlement
                 }
                 Poly(mid, colour, (Vector3[])ring0.Clone());
                 Poly(mid, colour, (Vector3[])ring1.Clone());
+            }
+
+            /// <summary>Faceted ellipsoid (8 segments around, 4 rings) for tree crowns.</summary>
+            public void Blob(Vector3 c, Vector3 radii, int colour)
+            {
+                const int segs = 8, rings = 4;
+                var pts = new Vector3[rings + 1, segs];
+                for (int r = 0; r <= rings; r++)
+                {
+                    float phi = Mathf.PI * r / rings;
+                    for (int s = 0; s < segs; s++)
+                    {
+                        float theta = 2f * Mathf.PI * (s + (r % 2) * 0.5f) / segs;
+                        pts[r, s] = c + Vector3.Scale(radii, new Vector3(Mathf.Sin(phi) * Mathf.Cos(theta), Mathf.Cos(phi), Mathf.Sin(phi) * Mathf.Sin(theta)));
+                    }
+                }
+                for (int r = 0; r < rings; r++)
+                for (int s = 0; s < segs; s++)
+                {
+                    int n = (s + 1) % segs;
+                    if (r == 0) Poly(c, colour, pts[0, 0], pts[1, s], pts[1, n]);
+                    else if (r == rings - 1) Poly(c, colour, pts[r, s], pts[r, n], pts[rings, 0]);
+                    else
+                    {
+                        Poly(c, colour, pts[r, s], pts[r, n], pts[r + 1, s]);
+                        Poly(c, colour, pts[r, n], pts[r + 1, n], pts[r + 1, s]);
+                    }
+                }
             }
 
             public void Cone(Vector3 b, float r, float h, int segs, int colour)

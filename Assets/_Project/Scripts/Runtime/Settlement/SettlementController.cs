@@ -31,6 +31,7 @@ namespace EpochsUnbound.Settlement
         readonly System.Collections.Generic.Dictionary<BuildingKind, Mesh> _models = new();
         readonly System.Collections.Generic.Dictionary<Entity, GameObject> _views = new();
         static readonly Color SiteTint = new(0.85f, 0.78f, 0.66f);
+        ChunkStreamer _streamer;
         string _message = "Place your Town Centre on flat, dry land (left click).";
         bool _hasHit;
         float3 _hit;
@@ -57,6 +58,7 @@ namespace EpochsUnbound.Settlement
             _soilBlock = Models.Block(Models.Soil);
             SettlementOps.CreateColony(_em, Settings, _terrain);
             _rules = Settings.ToRules();
+            _streamer = FindAnyObjectByType<ChunkStreamer>();
             _started = true;
             BeginPlacing(BuildingKind.TownCentre);
         }
@@ -135,6 +137,7 @@ namespace EpochsUnbound.Settlement
             var view = CreateModel(_placing, _placing.Name);
             PlaceModel(view, _placing, at, Color.white);
             _views[building] = view;
+            if (_streamer != null) _streamer.AddClearing(at, SettlementOps.Radius(_placing) + 2f);
             _message = $"Placed {_placing.Name} for {_placing.WoodCost} wood. Idle citizens will build it, or select citizens and press Build.";
             if (SettlementOps.GetColony(_em).Wood < _placing.WoodCost)
             {

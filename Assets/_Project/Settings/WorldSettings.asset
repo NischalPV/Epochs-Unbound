@@ -30,4 +30,7 @@ MonoBehaviour:
   MaxLoadRadius: 12
   UnloadMargin: 2
   ChunksPerFrame: 8
+  TreeDrawRadius: 4
   TerrainMaterial: {fileID: 2100000, guid: 1a53cdecd312c304e8091065f84672ee, type: 2}
+  TreeMaterial: {fileID: 2100000, guid: d69c5991f97e42c498c277fc5a670df8, type: 2}
+  WaterMaterial: {fileID: 2100000, guid: 44e177d54598d5e4f8417ac37911f126, type: 2}

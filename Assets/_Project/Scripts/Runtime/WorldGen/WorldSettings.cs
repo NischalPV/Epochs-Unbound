@@ -39,7 +39,13 @@ namespace EpochsUnbound.WorldGen
         [Min(0)] public int UnloadMargin = 2;
         [Min(1)] public int ChunksPerFrame = 8;
 
+        [Tooltip("Trees are drawn for chunks within this many chunks of the camera focus.")]
+        [Min(0)] public int TreeDrawRadius = 4;
+
         public Material TerrainMaterial;
+        [Tooltip("Instancing-enabled lit material; the tree palette texture is applied at runtime.")]
+        public Material TreeMaterial;
+        public Material WaterMaterial;
 
         public TerrainParams ToParams()
         {

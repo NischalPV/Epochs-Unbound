@@ -63,7 +63,7 @@ namespace EpochsUnbound.WorldGen
             Climate(world, ground, p, out float t, out float m);
             if (t < 0.06f && ground > p.MountainHeight * 0.2f) return Biome.Snow;
             if (upY < 0.8f || ground > p.MountainHeight * 0.45f) return Biome.Mountain;
-            if (ground < 1.5f) return Biome.Beach;
+            if (ground < 0.8f) return Biome.Beach;
             if (t < 0.33f) return Biome.Tundra;
             if (t < 0.66f) return m < 0.66f ? Biome.Grassland : Biome.Forest;
             return m < 0.33f ? Biome.Desert : m < 0.66f ? Biome.Savanna : Biome.Swamp;
@@ -75,7 +75,8 @@ namespace EpochsUnbound.WorldGen
             if (ground < 0f)
             {
                 float depth = math.saturate(-ground / p.OceanDepth);
-                return ToColour(math.lerp(new float3(0.22f, 0.52f, 0.64f), new float3(0.04f, 0.13f, 0.32f), math.sqrt(depth)));
+                // Seabed: sand in the shallows, dark silt deeper; the transparent water surface adds the blue.
+                return ToColour(math.lerp(new float3(0.78f, 0.72f, 0.54f), new float3(0.16f, 0.2f, 0.2f), math.sqrt(depth)));
             }
 
             Climate(world, ground, p, out float t, out float m);
@@ -86,11 +87,32 @@ namespace EpochsUnbound.WorldGen
             float3 hot = Lerp3(new float3(0.88f, 0.77f, 0.52f), new float3(0.72f, 0.64f, 0.32f), new float3(0.27f, 0.35f, 0.20f), m);
             float3 col = Lerp3(cold, temperate, hot, t);
 
-            col = math.lerp(col, new float3(0.86f, 0.80f, 0.60f), 1f - math.smoothstep(0.8f, 2f, ground));           // beach
+            col = math.lerp(col, new float3(0.86f, 0.80f, 0.60f), 1f - math.smoothstep(0.55f, 0.9f, ground));           // beach
             float rock = math.max(1f - math.smoothstep(0.72f, 0.88f, upY), math.smoothstep(0.35f, 0.5f, ground / p.MountainHeight));
             col = math.lerp(col, new float3(0.48f, 0.45f, 0.42f), rock);                                                 // rock
             col = math.lerp(col, new float3(0.95f, 0.96f, 0.98f), (1f - math.smoothstep(0.02f, 0.08f, t)) * math.smoothstep(0.12f, 0.25f, ground / p.MountainHeight)); // snow only on high ground; cold lowlands stay tundra
+            // Patchy small-scale variation so large areas are not one flat colour.
+            float patch = noise.snoise(world * 0.012f + p.DetailOffset * 3.1f) * 0.5f + noise.snoise(world * 0.05f + p.DetailOffset) * 0.25f;
+            col *= 1f + patch * 0.12f;
             return ToColour(col);
+        }
+
+        /// <summary>Chance (0..1) of a tree on a 9 m cell, and whether it is a conifer. Forests follow climate.</summary>
+        public static float TreeDensity(float2 world, float ground, in TerrainParams p, out bool pine)
+        {
+            pine = false;
+            if (ground < 2f || ground > p.MountainHeight * 0.45f) return 0f;
+            Climate(world, ground, p, out float t, out float m);
+            if (t < 0.06f) return 0f;
+            // Clumping: forests have glades, plains have the odd copse.
+            float clump = math.saturate(noise.snoise(world * 0.006f + p.MoistureOffset * 1.7f) * 0.6f + 0.6f);
+            if (t < 0.33f) { pine = true; return math.smoothstep(0.35f, 0.7f, m) * 0.75f * clump + 0.03f; }
+            if (t < 0.66f)
+            {
+                pine = m > 0.8f && noise.snoise(world * 0.01f) > 0.3f;
+                return math.smoothstep(0.5f, 0.75f, m) * 0.8f * clump + 0.02f;
+            }
+            return math.smoothstep(0.55f, 0.85f, m) * 0.5f * clump + 0.01f; // savanna: sparse; swamp: wetter, denser
         }
 
         /// <summary>
