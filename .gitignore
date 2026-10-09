@@ -107,3 +107,6 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Zips waiting for tools/fetch-art.ps1 to unpack into Assets/_Project/ThirdParty
+/ArtDrop/

@@ -2,7 +2,6 @@ using EpochsUnbound.CameraControl;
 using EpochsUnbound.Settlement;
 using EpochsUnbound.Simulation;
 using EpochsUnbound.WorldGen;
-using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -23,7 +22,7 @@ namespace EpochsUnbound.Editor
         [MenuItem("Epochs Unbound/Rebuild Main Scene")]
         public static void Run()
         {
-            foreach (var dir in new[] { "Settings", "Materials", "Scenes", "Textures" })
+            foreach (var dir in new[] { "Settings", "Materials", "Scenes" })
                 if (!AssetDatabase.IsValidFolder($"{Root}/{dir}"))
                     AssetDatabase.CreateFolder(Root, dir);
 
@@ -38,12 +37,8 @@ namespace EpochsUnbound.Editor
             var citizenMat = LoadOrCreateMaterial("Citizen");
             citizenMat.enableInstancing = true;
             EditorUtility.SetDirty(citizenMat);
-            // Terrain: tiling detail texture multiplied over the per-chunk biome colours.
-            mat.SetTexture("_DetailAlbedoMap", TerrainDetailTexture());
-            mat.SetTextureScale("_DetailAlbedoMap", new Vector2(40, 40)); // ~6.4 m per tile on a 256 m chunk
-            mat.SetFloat("_DetailAlbedoMapScale", 1f);
-            mat.EnableKeyword("_DETAIL_MULX2");
-            EditorUtility.SetDirty(mat);
+            // Terrain: photo ground layers (from tools/fetch-art.ps1, when downloaded) over the per-chunk biome colours.
+            ArtImport.SetUpTerrain(mat);
 
             world.TerrainMaterial = mat;
             world.TreeMaterial = citizenMat;
@@ -54,6 +49,8 @@ namespace EpochsUnbound.Editor
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = new Color(0.74f, 0.82f, 0.9f);
+            if (!ArtImport.SetUpSky($"{Root}/Materials/Sky.mat"))
+                Debug.Log("[ProjectSetup] No sky panorama yet: run tools/fetch-art.ps1 for the Poly Haven sky.");
 
             var light = Object.FindAnyObjectByType<Light>();
             light.transform.rotation = Quaternion.Euler(42f, -35f, 0f);
@@ -115,38 +112,6 @@ namespace EpochsUnbound.Editor
             water.SetFloat("_Metallic", 0f);
             EditorUtility.SetDirty(water);
             return water;
-        }
-
-        /// <summary>Tileable grey noise around 0.5 (neutral for the x2 detail multiply): grass/soil grain.</summary>
-        static Texture2D TerrainDetailTexture()
-        {
-            var path = $"{Root}/Textures/TerrainDetail.png";
-            var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (existing != null) return existing;
-
-            const int n = 512;
-            var tex = new Texture2D(n, n, TextureFormat.RGB24, false);
-            var px = new Color32[n * n];
-            for (int y = 0; y < n; y++)
-            for (int x = 0; x < n; x++)
-            {
-                var p = new float2(x, y) / n;
-                float v = 0, amp = 0.5f;
-                for (int o = 0, f = 8; o < 5; o++, f *= 2, amp *= 0.55f)
-                    v += noise.pnoise(p * f, new float2(f, f)) * amp;
-                float grain = noise.pnoise(p * 128f, new float2(128, 128)) * 0.08f;
-                byte g = (byte)math.clamp((0.5f + v * 0.22f + grain) * 255f, 0f, 255f);
-                px[y * n + x] = new Color32(g, g, g, 255);
-            }
-            tex.SetPixels32(px);
-            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
-            Object.DestroyImmediate(tex);
-            AssetDatabase.ImportAsset(path);
-            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
-            importer.wrapMode = TextureWrapMode.Repeat;
-            importer.anisoLevel = 4;
-            importer.SaveAndReimport();
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
 
         static VolumeProfile PostProcessProfile()

@@ -180,6 +180,7 @@ namespace EpochsUnbound.WorldGen
             var positions = new NativeArray<float3>[coords.Count];
             var normals = new NativeArray<float3>[coords.Count];
             var colours = new NativeArray<Color32>[coords.Count];
+            var layers = new NativeArray<Color32>[coords.Count];
             var trees = new NativeList<float4>[coords.Count];
 
             for (int i = 0; i < coords.Count; i++)
@@ -188,6 +189,7 @@ namespace EpochsUnbound.WorldGen
                 positions[i] = new NativeArray<float3>(n, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 normals[i] = new NativeArray<float3>(n, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 colours[i] = new NativeArray<Color32>(n, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                layers[i] = new NativeArray<Color32>(n, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 trees[i] = new NativeList<float4>(256, Allocator.TempJob);
                 jobs[i * 2] = new ChunkJob
                 {
@@ -198,6 +200,7 @@ namespace EpochsUnbound.WorldGen
                     Positions = positions[i],
                     Normals = normals[i],
                     Colours = colours[i],
+                    Layers = layers[i],
                 }.Schedule(n, 256);
                 jobs[i * 2 + 1] = new TreeJob
                 {
@@ -216,6 +219,7 @@ namespace EpochsUnbound.WorldGen
                 mesh.SetVertices(positions[i]);
                 mesh.SetNormals(normals[i]);
                 mesh.SetUVs(0, _uvs);
+                mesh.SetColors(layers[i]);   // ground material weights for the terrain shader
                 mesh.SetIndices(_indices, MeshTopology.Triangles, 0);
                 mesh.RecalculateBounds();
 
@@ -244,6 +248,7 @@ namespace EpochsUnbound.WorldGen
                 positions[i].Dispose();
                 normals[i].Dispose();
                 colours[i].Dispose();
+                layers[i].Dispose();
                 trees[i].Dispose();
             }
             jobs.Dispose();
@@ -278,6 +283,7 @@ namespace EpochsUnbound.WorldGen
             [WriteOnly] public NativeArray<float3> Positions;
             [WriteOnly] public NativeArray<float3> Normals;
             [WriteOnly] public NativeArray<Color32> Colours;
+            [WriteOnly] public NativeArray<Color32> Layers;
 
             public void Execute(int i)
             {
@@ -296,6 +302,7 @@ namespace EpochsUnbound.WorldGen
                 Positions[i] = new float3(local.x, ground, local.y);   // real seabed; the water plane sits at y = 0
                 Normals[i] = normal;
                 Colours[i] = TerrainSampler.BiomeColour(world, ground, normal.y, P);
+                Layers[i] = TerrainSampler.GroundLayers(world, ground, normal.y, P);
             }
         }
 

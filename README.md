@@ -34,13 +34,25 @@ The game starts in Town Centre placement: pick flat, dry land. Placed buildings 
 
 Tuning lives in `Assets/_Project/Settings` (world seed, chunk size, noise, streaming radius, camera speeds, tick rate). `Epochs Unbound > Rebuild Main Scene` regenerates the scene.
 
+## Art
+
+Third-party art is free CC0 and lives in `Assets/_Project/ThirdParty` (credits in `CREDITS.md` there), committed as ordinary git files. To fetch or refresh it:
+
+1. From the repo root, run `powershell -ExecutionPolicy Bypass -File tools\fetch-art.ps1`. It downloads Poly Haven ground textures and a sky, plus Kenney building, prop and character packs, keeping only the FBX models and their textures.
+2. For Quaternius packs, download the zips from quaternius.com by hand and put them in an `ArtDrop` folder at the repo root (git ignores it), then run the script again to unpack them.
+3. Open Unity, let it import, then run `Epochs Unbound > Rebuild Main Scene` to put the textures on the terrain and the sky in the scene.
+
+The terrain shader (`Assets/_Project/Shaders/Terrain.shader`) blends grass, dirt, sand, rock and snow by weights from `TerrainSampler.GroundLayers`, over the biome colours. Without the textures it shows the biome colours only.
+
 ## Layout
 
 - `Assets/_Project/Scripts/Runtime/Simulation` - `SimClock` and `SimTickSystemGroup`: put deterministic ECS systems in this group; it runs once per fixed tick.
 - `Assets/_Project/Scripts/Runtime/WorldGen` - chunk maths, Burst terrain jobs, chunk streaming.
 - `Assets/_Project/Scripts/Runtime/CameraControl` - RTS camera.
 - `Assets/_Project/Scripts/Runtime/Settlement` - citizens and buildings as ECS entities, Burst systems on the sim tick (life, census, assignment, motion, economy, births), instanced citizen rendering, placement/selection UI. Tuning in `SettlementSettings.asset`.
+- `Assets/_Project/Scripts/Editor` - scene setup (`ProjectSetup`) and import settings for third-party art (`ArtImport`).
 - `Assets/_Project/Scripts/Tests` - EditMode and PlayMode tests.
+- `tools/fetch-art.ps1` - downloads the third-party art.
 
 Tests from the command line:
 

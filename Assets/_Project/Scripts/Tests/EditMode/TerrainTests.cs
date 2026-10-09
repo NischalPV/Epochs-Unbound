@@ -91,6 +91,41 @@ namespace EpochsUnbound.Tests
             Assert.Greater(cold, 10, "expected some cold lowland");
         }
 
+        [Test]
+        public void GroundLayersFollowSlopeHeightAndDepth()
+        {
+            var p = Params(12345);
+            var pos = new float2(500f, 500f);
+            Assert.AreEqual(255, TerrainSampler.GroundLayers(pos, 20f, 0.5f, p).r, "steep ground is rock");
+            Assert.AreEqual(255, TerrainSampler.GroundLayers(pos, 0.3f, 1f, p).g, "the shoreline is sand");
+            Assert.AreEqual(255, TerrainSampler.GroundLayers(pos, p.MountainHeight * 0.6f, 1f, p).r, "high peaks are rock");
+
+            var shallows = TerrainSampler.GroundLayers(pos, -1f, 1f, p);
+            var deep = TerrainSampler.GroundLayers(pos, -p.OceanDepth, 1f, p);
+            Assert.Greater(shallows.g, shallows.a, "shallow seabed is sand");
+            Assert.Greater(deep.a, deep.g, "deep seabed is silt");
+        }
+
+        [TestCase(12345u)]
+        [TestCase(1u)]
+        public void FlatTemperateLowlandIsMostlyGrass(uint seed)
+        {
+            var p = Params(seed);
+            int lowland = 0, covered = 0;
+            foreach (var g in Grid())
+            {
+                float h = TerrainSampler.GroundHeight(g, p);
+                if (h < 3f || h > p.PlainsHeight) continue;
+                TerrainSampler.Climate(g, h, p, out float t, out float m);
+                if (t < 0.4f || t > 0.6f || m < 0.5f) continue;
+                lowland++;
+                var w = TerrainSampler.GroundLayers(g, h, 1f, p);
+                if (math.max(math.max(w.r, w.g), math.max(w.b, w.a)) > 200) covered++;
+            }
+            Assert.Greater(lowland, 10, "expected some temperate lowland");
+            Assert.Less(covered, lowland / 2, "most temperate lowland should show grass, not another layer");
+        }
+
         [TestCase(12345u)]
         [TestCase(1u)]
         public void SpawnIsOnLandNearTheCoast(uint seed)

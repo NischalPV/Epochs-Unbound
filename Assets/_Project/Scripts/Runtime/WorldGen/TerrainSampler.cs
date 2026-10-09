@@ -87,14 +87,50 @@ namespace EpochsUnbound.WorldGen
             float3 hot = Lerp3(new float3(0.88f, 0.77f, 0.52f), new float3(0.72f, 0.64f, 0.32f), new float3(0.27f, 0.35f, 0.20f), m);
             float3 col = Lerp3(cold, temperate, hot, t);
 
-            col = math.lerp(col, new float3(0.86f, 0.80f, 0.60f), 1f - math.smoothstep(0.55f, 0.9f, ground));           // beach
-            float rock = math.max(1f - math.smoothstep(0.72f, 0.88f, upY), math.smoothstep(0.35f, 0.5f, ground / p.MountainHeight));
-            col = math.lerp(col, new float3(0.48f, 0.45f, 0.42f), rock);                                                 // rock
-            col = math.lerp(col, new float3(0.95f, 0.96f, 0.98f), (1f - math.smoothstep(0.02f, 0.08f, t)) * math.smoothstep(0.12f, 0.25f, ground / p.MountainHeight)); // snow only on high ground; cold lowlands stay tundra
+            col = math.lerp(col, new float3(0.86f, 0.80f, 0.60f), BeachWeight(ground));                                 // beach
+            col = math.lerp(col, new float3(0.48f, 0.45f, 0.42f), RockWeight(ground, upY, p));                           // rock
+            col = math.lerp(col, new float3(0.95f, 0.96f, 0.98f), SnowWeight(ground, t, p));                             // snow
             // Patchy small-scale variation so large areas are not one flat colour.
             float patch = noise.snoise(world * 0.012f + p.DetailOffset * 3.1f) * 0.5f + noise.snoise(world * 0.05f + p.DetailOffset) * 0.25f;
             col *= 1f + patch * 0.12f;
             return ToColour(col);
+        }
+
+        /// <summary>
+        /// Ground material weights for the terrain shader, applied in order over grass:
+        /// a = dirt, g = sand, r = rock, b = snow (each 0..255 blends that layer over the ones before it).
+        /// </summary>
+        public static Color32 GroundLayers(float2 world, float ground, float upY, in TerrainParams p)
+        {
+            if (ground < 0f)
+            {
+                // Seabed: sand in the shallows, silt (dirt) deeper.
+                float deep = math.smoothstep(0.05f, 0.4f, math.sqrt(math.saturate(-ground / p.OceanDepth)));
+                return ToWeights(deep, 1f - deep, 0f, 0f);
+            }
+
+            Climate(world, ground, p, out float t, out float m);
+            // Bare soil on dry ground, plus patches everywhere so open grassland is not uniform.
+            float patch = math.smoothstep(0.3f, 0.7f, noise.snoise(world * 0.02f + p.DetailOffset * 1.3f) * 0.5f + 0.5f);
+            float dirt = math.saturate((1f - math.smoothstep(0.2f, 0.5f, m)) * 0.7f + patch * 0.35f);
+            float desert = math.smoothstep(0.6f, 0.72f, t) * (1f - math.smoothstep(0.25f, 0.4f, m));
+            float sand = math.max(BeachWeight(ground), desert);
+            return ToWeights(dirt, sand, RockWeight(ground, upY, p), SnowWeight(ground, t, p));
+        }
+
+        static float BeachWeight(float ground) => 1f - math.smoothstep(0.55f, 0.9f, ground);
+
+        static float RockWeight(float ground, float upY, in TerrainParams p) =>
+            math.max(1f - math.smoothstep(0.72f, 0.88f, upY), math.smoothstep(0.35f, 0.5f, ground / p.MountainHeight));
+
+        /// <summary>Snow only on high, cold ground; cold lowlands stay tundra.</summary>
+        static float SnowWeight(float ground, float temperature, in TerrainParams p) =>
+            (1f - math.smoothstep(0.02f, 0.08f, temperature)) * math.smoothstep(0.12f, 0.25f, ground / p.MountainHeight);
+
+        static Color32 ToWeights(float dirt, float sand, float rock, float snow)
+        {
+            float4 w = math.saturate(new float4(rock, sand, snow, dirt)) * 255f;
+            return new Color32((byte)w.x, (byte)w.y, (byte)w.z, (byte)w.w);
         }
 
         /// <summary>Chance (0..1) of a tree on a 9 m cell, and whether it is a conifer. Forests follow climate.</summary>
