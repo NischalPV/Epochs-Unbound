@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25cb6b0e768c00e47a2677e516320dae, type: 3}
+  m_Name: WorldSettings
+  m_EditorClassIdentifier: EpochsUnbound::EpochsUnbound.WorldGen.WorldSettings
+  Seed: 12345
+  ChunkSize: 256
+  Resolution: 64
+  HeightScale: 260
+  SeaLevel01: 0.3
+  Frequency: 0.0011
+  Octaves: 6
+  MoistureFrequency: 0.0006
+  MinLoadRadius: 3
+  MaxLoadRadius: 12
+  UnloadMargin: 2
+  ChunksPerFrame: 8
+  TerrainMaterial: {fileID: 2100000, guid: 1a53cdecd312c304e8091065f84672ee, type: 2}

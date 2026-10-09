@@ -1,0 +1,10 @@
+{
+    "name": "EpochsUnbound.Editor",
+    "rootNamespace": "EpochsUnbound.Editor",
+    "references": [
+        "EpochsUnbound"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "name": "EpochsUnbound",
+    "rootNamespace": "EpochsUnbound",
+    "references": [
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.InputSystem"
+    ],
+    "autoReferenced": true
+}
