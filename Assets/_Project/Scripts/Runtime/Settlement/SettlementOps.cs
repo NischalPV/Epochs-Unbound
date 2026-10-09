@@ -116,11 +116,11 @@ namespace EpochsUnbound.Settlement
         }
 
         /// <summary>
-        /// Vertical extent of a building's visual so it never floats: the base sinks to the lowest ground in the
-        /// footprint (a foundation skirt); the roof sits on the highest ground (farms: on the average, so a field
-        /// hugs the slope rather than standing on a platform).
+        /// Where a building's model goes so it never floats: the model stands on <paramref name="baseY"/> (highest
+        /// ground in the footprint; farms use the average so fields hug the slope), and a foundation block fills
+        /// down to <paramref name="bottom"/> (just below the lowest ground).
         /// </summary>
-        public static void VisualExtent(BuildingDef def, float3 pos, in TerrainParams terrain, out float bottom, out float top)
+        public static void VisualExtent(BuildingDef def, float3 pos, in TerrainParams terrain, out float bottom, out float baseY)
         {
             const int n = 7;
             float min = float.MaxValue, max = float.MinValue, sum = 0;
@@ -134,7 +134,7 @@ namespace EpochsUnbound.Settlement
                 sum += h;
             }
             bottom = min - 0.5f;
-            top = (def.Kind == BuildingKind.Farm ? sum / (n * n) : max) + def.Size.y;
+            baseY = def.Kind == BuildingKind.Farm ? sum / (n * n) : max;
         }
 
         public static float Radius(BuildingDef def) => math.length(new float2(def.Size.x, def.Size.z)) * 0.5f;

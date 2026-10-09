@@ -26,6 +26,9 @@ namespace EpochsUnbound.Settlement
         BuildingDef _placing;
         GameObject _ghost;
         MaterialPropertyBlock _mpb;
+        Material _material;
+        Mesh _stoneBlock, _soilBlock;
+        readonly System.Collections.Generic.Dictionary<BuildingKind, Mesh> _models = new();
         string _message = "Place your Town Centre on flat, dry land (left click).";
         bool _hasHit;
         float3 _hit;
@@ -46,6 +49,10 @@ namespace EpochsUnbound.Settlement
             _em = Unity.Entities.World.DefaultGameObjectInjectionWorld.EntityManager;
             _terrain = World.ToParams();
             _mpb = new MaterialPropertyBlock();
+            _material = new Material(BuildingMaterial);
+            _material.SetTexture("_BaseMap", Models.CreatePalette());
+            _stoneBlock = Models.Block(Models.Stone);
+            _soilBlock = Models.Block(Models.Soil);
             SettlementOps.CreateColony(_em, Settings, _terrain);
             _rules = Settings.ToRules();
             _started = true;
@@ -81,7 +88,7 @@ namespace EpochsUnbound.Settlement
         {
             CancelPlacing();
             _placing = Settings.Def(kind);
-            _ghost = CreateBox(_placing, "Ghost");
+            _ghost = CreateModel(_placing, "Ghost");
         }
 
         void CancelPlacing()
@@ -97,7 +104,7 @@ namespace EpochsUnbound.Settlement
             if (!_hasHit) return;
 
             var result = SettlementOps.CanPlace(_em, _placing, _hit, _terrain, out float yield);
-            PlaceBox(_ghost, _placing, _hit, result == SettlementOps.PlaceResult.Ok ? new Color(0.3f, 0.9f, 0.3f) : new Color(0.9f, 0.25f, 0.2f));
+            PlaceModel(_ghost, _placing, _hit, result == SettlementOps.PlaceResult.Ok ? new Color(0.5f, 1f, 0.5f) : new Color(1f, 0.35f, 0.3f));
             float wood = SettlementOps.GetColony(_em).Wood;
             _message = result == SettlementOps.PlaceResult.Ok
                 ? $"{_placing.Name}: {Describe(_placing, yield)}, cost {_placing.WoodCost} wood (you have {wood:0})  - left click to build, right click to cancel"
@@ -107,8 +114,7 @@ namespace EpochsUnbound.Settlement
             float3 at = new float3(_hit.x, TerrainSampler.SurfaceHeight(_hit.xz, _terrain), _hit.z);
             if (SettlementOps.TryPlace(_em, Settings, _placing, at, _terrain, out _) != SettlementOps.PlaceResult.Ok) return;
 
-            var box = CreateBox(_placing, _placing.Name);
-            PlaceBox(box, _placing, at, _placing.Colour);
+            PlaceModel(CreateModel(_placing, _placing.Name), _placing, at, Color.white);
             _message = $"Built {_placing.Name} for {_placing.WoodCost} wood.";
             if (SettlementOps.GetColony(_em).Wood < _placing.WoodCost)
             {
@@ -138,23 +144,32 @@ namespace EpochsUnbound.Settlement
             _ => "",
         };
 
-        GameObject CreateBox(BuildingDef def, string name)
+        /// <summary>Building model plus a foundation block (child 0) that reaches down to the lowest ground.</summary>
+        GameObject CreateModel(BuildingDef def, string name)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            Destroy(go.GetComponent<Collider>());
-            go.GetComponent<Renderer>().sharedMaterial = BuildingMaterial;
+            if (!_models.TryGetValue(def.Kind, out var mesh)) _models[def.Kind] = mesh = Models.Building(def);
+            var go = new GameObject(name);
             go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = _material;
+
+            var foundation = new GameObject("Foundation");
+            foundation.transform.SetParent(go.transform, false);
+            foundation.AddComponent<MeshFilter>().sharedMesh = Models.Foundation(def.Kind).colour == Models.Stone ? _stoneBlock : _soilBlock;
+            foundation.AddComponent<MeshRenderer>().sharedMaterial = _material;
             return go;
         }
 
-        void PlaceBox(GameObject go, BuildingDef def, float3 at, Color colour)
+        void PlaceModel(GameObject go, BuildingDef def, float3 at, Color tint)
         {
-            SettlementOps.VisualExtent(def, at, _terrain, out float bottom, out float top);
-            go.transform.position = new Vector3(at.x, (bottom + top) * 0.5f, at.z);
-            go.transform.localScale = new Vector3(def.Size.x, top - bottom, def.Size.z);
-            _mpb.SetColor(BaseColor, colour);
-            go.GetComponent<Renderer>().SetPropertyBlock(_mpb);
+            SettlementOps.VisualExtent(def, at, _terrain, out float bottom, out float baseY);
+            go.transform.position = new Vector3(at.x, baseY, at.z);
+            var foundation = go.transform.GetChild(0);
+            foundation.localPosition = new Vector3(0, bottom - baseY, 0);
+            float fs = Models.Foundation(def.Kind).scale;
+            foundation.localScale = new Vector3(def.Size.x * fs, baseY - bottom + 0.05f, def.Size.z * fs);
+            _mpb.SetColor(BaseColor, tint);
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.SetPropertyBlock(_mpb);
         }
 
         // ---------- selection and orders ----------

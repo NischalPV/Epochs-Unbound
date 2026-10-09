@@ -125,7 +125,7 @@ namespace EpochsUnbound.Tests
                 foreach (var def in _settings.Buildings)
                 {
                     var pos = new float3(xz.x, 0, xz.y);
-                    SettlementOps.VisualExtent(def, pos, _terrain, out float bottom, out float top);
+                    SettlementOps.VisualExtent(def, pos, _terrain, out float bottom, out float baseY);
                     for (int z = 0; z <= 12; z++)
                     for (int x = 0; x <= 12; x++)
                     {
@@ -133,7 +133,7 @@ namespace EpochsUnbound.Tests
                         float ground = TerrainSampler.SurfaceHeight(p, _terrain);
                         Assert.LessOrEqual(bottom, ground + 0.05f, $"{def.Name} floats at {p}");
                         if (def.Kind != BuildingKind.Farm)
-                            Assert.GreaterOrEqual(top, ground, $"{def.Name} buried at {p}");
+                            Assert.GreaterOrEqual(baseY, ground - 0.3f, $"{def.Name} sits below ground at {p}"); // ground can bump up between the 7x7 samples
                     }
                 }
             }
