@@ -58,9 +58,9 @@ namespace EpochsUnbound.Tests
             SettlementOps.SetColony(Em, c);
         }
 
-        Entity Build(BuildingKind kind, float3 at)
+        Entity Build(BuildingKind kind, float3 at, bool built = true)
         {
-            var e = SettlementOps.CreateBuilding(Em, _settings.Def(kind), at, 1f, _settings.ToRules());
+            var e = SettlementOps.CreateBuilding(Em, _settings.Def(kind), at, 1f, _settings.ToRules(), built);
             if (kind == BuildingKind.TownCentre)
             {
                 var c = Colony;
@@ -90,6 +90,74 @@ namespace EpochsUnbound.Tests
             Assert.AreEqual(60f, r.LifespanMeanTicks / (float)ticksPerMinute, 0.01f, "mean lifespan 60 = 1 hour");
             Assert.AreEqual(3.5f, 1f / r.StarveHealthPerTick / ticksPerMinute, 0.01f, "starvation kills in half a game year");
             Object.DestroyImmediate(s);
+        }
+
+        Building B(Entity e) => Em.GetComponentData<Building>(e);
+
+        Entity[] Citizens()
+        {
+            using var q = Em.CreateEntityQuery(typeof(Citizen));
+            return q.ToEntityArray(Allocator.Temp).ToArray();
+        }
+
+        [Test]
+        public void ConstructionSiteGivesNothingUntilBuilt()
+        {
+            StartColony(100f);
+            var house = Build(BuildingKind.House, new float3(15, 0, 15), built: false);
+            Tick(200);
+            Assert.IsFalse(B(house).Built);
+            Assert.AreEqual(10, Colony.Housing, "a site gives no housing");
+            Assert.AreEqual(_settings.Def(BuildingKind.House).Builders, Colony.Builders, "idle adults fill the builder slots");
+            Assert.Greater(B(house).BuildProgress, 0f);
+
+            Tick(_settings.DayTicks);
+            Assert.IsTrue(B(house).Built);
+            Assert.AreEqual(16, Colony.Housing);
+            Assert.AreEqual(0, Colony.Builders, "builders are released when a house is finished");
+            foreach (var e in Citizens()) Assert.AreNotEqual(house, Em.GetComponentData<Citizen>(e).Job);
+        }
+
+        [Test]
+        public void NoProgressWithoutBuilders()
+        {
+            StartColony(100f);
+            foreach (var e in Citizens()) SettlementOps.AssignTask(Em, e, SettlementOps.Task.Idle);
+            var house = Build(BuildingKind.House, new float3(15, 0, 15), built: false);
+            Tick(300);
+            Assert.AreEqual(0f, B(house).BuildProgress, "citizens told to stay idle must not be auto-assigned");
+
+            var all = Citizens();
+            Assert.IsTrue(SettlementOps.AssignTask(Em, all[0], SettlementOps.Task.Build));
+            Assert.IsTrue(SettlementOps.AssignTask(Em, all[1], SettlementOps.Task.Build));
+            Tick(300);
+            Assert.AreEqual(2, Colony.Builders);
+            Assert.Greater(B(house).BuildProgress, 0f);
+        }
+
+        [Test]
+        public void FarmBuildersBecomeItsFarmers()
+        {
+            StartColony(100f);
+            var farm = Build(BuildingKind.Farm, new float3(25, 0, 0), built: false);
+            Tick(_settings.DayTicks * 2);
+            Assert.IsTrue(B(farm).Built);
+            Assert.AreEqual(5, B(farm).Workers);
+            Assert.AreEqual(0, Colony.Builders);
+        }
+
+        [Test]
+        public void AutoReturnsACitizenToAutomaticJobs()
+        {
+            StartColony(100f);
+            var all = Citizens();
+            for (int i = 0; i < 6; i++) SettlementOps.AssignTask(Em, all[i], SettlementOps.Task.Idle);
+            var farm = Build(BuildingKind.Farm, new float3(25, 0, 0));
+            Tick(2);
+            Assert.AreEqual(4, B(farm).Workers, "only the 4 automatic citizens take farm jobs");
+            SettlementOps.AssignTask(Em, all[0], SettlementOps.Task.Auto);
+            Tick(2);
+            Assert.AreEqual(5, B(farm).Workers);
         }
 
         [Test]

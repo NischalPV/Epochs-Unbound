@@ -29,6 +29,8 @@ namespace EpochsUnbound.Settlement
         Material _material;
         Mesh _stoneBlock, _soilBlock;
         readonly System.Collections.Generic.Dictionary<BuildingKind, Mesh> _models = new();
+        readonly System.Collections.Generic.Dictionary<Entity, GameObject> _views = new();
+        static readonly Color SiteTint = new(0.85f, 0.78f, 0.66f);
         string _message = "Place your Town Centre on flat, dry land (left click).";
         bool _hasHit;
         float3 _hit;
@@ -80,6 +82,22 @@ namespace EpochsUnbound.Settlement
 
             if (_placing != null) UpdatePlacing(mouse, kb);
             else if (_hasHit) UpdateSelection(mouse, kb);
+            UpdateViews();
+        }
+
+        /// <summary>Construction sites rise from their foundation as builders work; finished buildings lose the site tint.</summary>
+        void UpdateViews()
+        {
+            foreach (var (e, go) in _views)
+            {
+                if (!_em.Exists(e)) continue;
+                var b = _em.GetComponentData<Building>(e);
+                var model = go.transform.GetChild(1);
+                float rise = b.Built ? 1f : 0.08f + 0.92f * b.BuildProgress;
+                model.localScale = new Vector3(1f, rise, 1f);
+                _mpb.SetColor(BaseColor, b.Built ? Color.white : SiteTint);
+                model.GetComponent<Renderer>().SetPropertyBlock(_mpb);
+            }
         }
 
         // ---------- placement ----------
@@ -112,10 +130,12 @@ namespace EpochsUnbound.Settlement
 
             if (!mouse.leftButton.wasPressedThisFrame || result != SettlementOps.PlaceResult.Ok) return;
             float3 at = new float3(_hit.x, TerrainSampler.SurfaceHeight(_hit.xz, _terrain), _hit.z);
-            if (SettlementOps.TryPlace(_em, Settings, _placing, at, _terrain, out _) != SettlementOps.PlaceResult.Ok) return;
+            if (SettlementOps.TryPlace(_em, Settings, _placing, at, _terrain, out var building) != SettlementOps.PlaceResult.Ok) return;
 
-            PlaceModel(CreateModel(_placing, _placing.Name), _placing, at, Color.white);
-            _message = $"Built {_placing.Name} for {_placing.WoodCost} wood.";
+            var view = CreateModel(_placing, _placing.Name);
+            PlaceModel(view, _placing, at, Color.white);
+            _views[building] = view;
+            _message = $"Placed {_placing.Name} for {_placing.WoodCost} wood. Idle citizens will build it, or select citizens and press Build.";
             if (SettlementOps.GetColony(_em).Wood < _placing.WoodCost)
             {
                 _message += $" Not enough wood for another (need {_placing.WoodCost}).";
@@ -144,20 +164,23 @@ namespace EpochsUnbound.Settlement
             _ => "",
         };
 
-        /// <summary>Building model plus a foundation block (child 0) that reaches down to the lowest ground.</summary>
+        /// <summary>Root with a foundation block (child 0) reaching down to the lowest ground and the model (child 1).</summary>
         GameObject CreateModel(BuildingDef def, string name)
         {
             if (!_models.TryGetValue(def.Kind, out var mesh)) _models[def.Kind] = mesh = Models.Building(def);
             var go = new GameObject(name);
             go.transform.SetParent(transform, false);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = _material;
-
-            var foundation = new GameObject("Foundation");
-            foundation.transform.SetParent(go.transform, false);
-            foundation.AddComponent<MeshFilter>().sharedMesh = Models.Foundation(def.Kind).colour == Models.Stone ? _stoneBlock : _soilBlock;
-            foundation.AddComponent<MeshRenderer>().sharedMaterial = _material;
+            Part(go, "Foundation", Models.Foundation(def.Kind).colour == Models.Stone ? _stoneBlock : _soilBlock);
+            Part(go, "Model", mesh);
             return go;
+        }
+
+        void Part(GameObject parent, string name, Mesh mesh)
+        {
+            var part = new GameObject(name);
+            part.transform.SetParent(parent.transform, false);
+            part.AddComponent<MeshFilter>().sharedMesh = mesh;
+            part.AddComponent<MeshRenderer>().sharedMaterial = _material;
         }
 
         void PlaceModel(GameObject go, BuildingDef def, float3 at, Color tint)
@@ -199,9 +222,22 @@ namespace EpochsUnbound.Settlement
                     }
                 }
                 _message = building != Entity.Null
-                    ? $"{ok} of {Citizens.Selected.Count} assigned to work there."
-                    : $"Moving {Citizens.Selected.Count} citizen(s). They stay until given work.";
+                    ? $"{ok} of {Citizens.Selected.Count} assigned there" + (ok < Citizens.Selected.Count ? " (no free slots for the rest, or they are children)." : ".")
+                    : $"Moving {Citizens.Selected.Count} citizen(s). They stay until given a task.";
             }
+        }
+
+        void Assign(SettlementOps.Task task)
+        {
+            int ok = 0;
+            foreach (var c in Citizens.Selected)
+                if (SettlementOps.AssignTask(_em, c, task)) ok++;
+            _message = task switch
+            {
+                SettlementOps.Task.Idle => $"{ok} citizen(s) will stay idle until given a task.",
+                SettlementOps.Task.Auto => $"{ok} citizen(s) back on automatic jobs.",
+                _ => $"{task}: {ok} of {Citizens.Selected.Count} assigned" + (ok < Citizens.Selected.Count ? " (not enough free slots nearby, or children)." : "."),
+            };
         }
 
         Entity NearestCitizen(float3 at, float radius)
@@ -225,7 +261,7 @@ namespace EpochsUnbound.Settlement
             using var entities = q.ToEntityArray(Unity.Collections.Allocator.Temp);
             using var data = q.ToComponentDataArray<Building>(Unity.Collections.Allocator.Temp);
             for (int i = 0; i < entities.Length; i++)
-                if (data[i].JobSlots > 0 && math.distance(data[i].Position.xz, at.xz) < data[i].Radius) return entities[i];
+                if (data[i].Slots > 0 && math.distance(data[i].Position.xz, at.xz) < data[i].Radius) return entities[i];
             return Entity.Null;
         }
 
@@ -260,12 +296,13 @@ namespace EpochsUnbound.Settlement
                 GUI.Box(new Rect(w * 0.5f - 330, 50, 660, 64), hint, _hintStyle);
             }
 
-            var panel = new Rect(10, h - 190, 640, 180);
+            var panel = new Rect(10, h - 222, 680, 212);
             _panel = new Rect(panel.x * scale, panel.y * scale, panel.width * scale, panel.height * scale);
             GUI.Box(panel, GUIContent.none);
             GUILayout.BeginArea(new Rect(panel.x + 8, panel.y + 6, panel.width - 16, panel.height - 12));
             GUILayout.Label($"Food {c.Food:0.0}   Wood {c.Wood:0}   Population {c.Population} / {c.Housing} housing   " +
-                            $"Jobs {c.Employed} / {c.Jobs}   Births {c.Births}  Deaths {c.Deaths}" + (c.Starving ? "   STARVING" : ""));
+                            $"Workers {c.Employed - c.Builders} / {c.WorkSlots}   Builders {c.Builders} at {c.Sites} site(s)   Births {c.Births}  Deaths {c.Deaths}" +
+                            (c.Starving ? "   STARVING" : ""));
             GUILayout.BeginHorizontal();
             foreach (var def in Settings.Buildings)
             {
@@ -276,8 +313,18 @@ namespace EpochsUnbound.Settlement
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             GUILayout.Label(SelectionText());
+            GUI.enabled = Citizens.Selected.Count > 0;
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Task:", GUILayout.Width(40));
+            if (GUILayout.Button("Build")) Assign(SettlementOps.Task.Build);
+            if (GUILayout.Button("Farm")) Assign(SettlementOps.Task.Farm);
+            if (GUILayout.Button("Chop wood")) Assign(SettlementOps.Task.ChopWood);
+            if (GUILayout.Button("Stay idle")) Assign(SettlementOps.Task.Idle);
+            if (GUILayout.Button("Auto")) Assign(SettlementOps.Task.Auto);
+            GUILayout.EndHorizontal();
+            GUI.enabled = true;
             GUILayout.Label(_message);
-            GUILayout.Label("T/H/F/L build (Shift keeps placing)   LMB select (Shift adds)   RMB on farm/camp: work there, on ground: move   Esc cancel" + (Settings.DeveloperMode ? "   DEV: F9 stress test (ignores resources)" : ""));
+            GUILayout.Label("T/H/F/L place (Shift keeps placing)   LMB select (Shift adds)   RMB: build site / work at farm or camp / move   Esc cancel" + (Settings.DeveloperMode ? "   DEV: F9 stress test (ignores resources)" : ""));
             GUILayout.EndArea();
         }
 
@@ -287,6 +334,8 @@ namespace EpochsUnbound.Settlement
             if (_placing != null && _placing.Kind == BuildingKind.TownCentre)
                 return "Move the mouse over flat, dry land and LEFT CLICK to place your Town Centre (green = OK, red = not allowed)";
             if (!_em.Exists(c.TownCentre)) return "Press T (or the Town Centre button) to place your Town Centre";
+            if (!_em.GetComponentData<Building>(c.TownCentre).Built)
+                return $"Your citizens are building the Town Centre ({_em.GetComponentData<Building>(c.TownCentre).BuildProgress:P0}). Press 3 or 4 to speed up time";
             if (!Has(BuildingKind.Farm)) return "Your people need food: press F and place a Farm on green grassland";
             if (!Has(BuildingKind.LumberCamp)) return "Press L and place a Lumber Camp next to dark-green forest for wood";
             if (c.Housing - c.Population < 2 && c.Population < 20) return "Press H to build Houses so your population can grow";
@@ -307,9 +356,14 @@ namespace EpochsUnbound.Settlement
             var e = Citizens.Selected[0];
             if (!_em.Exists(e)) return "";
             var c = _em.GetComponentData<Citizen>(e);
-            string job = _em.HasComponent<Building>(c.Job) ? _em.GetComponentData<Building>(c.Job).Kind.ToString() : "none";
+            string job = "no job";
+            if (_em.HasComponent<Building>(c.Job))
+            {
+                var b = _em.GetComponentData<Building>(c.Job);
+                job = b.Built ? $"works at {b.Kind}" : $"building {b.Kind} ({b.BuildProgress:P0})";
+            }
             string stage = c.AgeTicks >= _rules.AdultAgeTicks ? "adult" : "child";
-            string first = $"Citizen #{c.Id} ({stage}): age {c.AgeTicks / _rules.TicksPerLifeYear:0}, {c.Task}, job {job}, health {c.Health:P0}";
+            string first = $"Citizen #{c.Id} ({stage}, age {c.AgeTicks / _rules.TicksPerLifeYear:0}): {job}, {c.Task}, {(c.Manual ? "your orders" : "auto")}, health {c.Health:P0}";
             return Citizens.Selected.Count == 1 ? first : $"{Citizens.Selected.Count} selected. {first}";
         }
     }

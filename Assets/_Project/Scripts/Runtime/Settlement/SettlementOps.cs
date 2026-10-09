@@ -157,7 +157,8 @@ namespace EpochsUnbound.Settlement
             return PlaceResult.Ok;
         }
 
-        public static Entity CreateBuilding(EntityManager em, BuildingDef def, float3 pos, float siteYield, in SettlementRules rules)
+        /// <summary>Creates a building; it starts as a construction site unless <paramref name="built"/> is set.</summary>
+        public static Entity CreateBuilding(EntityManager em, BuildingDef def, float3 pos, float siteYield, in SettlementRules rules, bool built = false)
         {
             var e = em.CreateEntity();
             em.SetName(e, def.Name);
@@ -170,6 +171,10 @@ namespace EpochsUnbound.Settlement
                 JobSlots = def.Jobs,
                 Produces = def.Produces,
                 OutputPerWorkerPerTick = def.OutputPerWorkerPerYear * siteYield / rules.TicksPerYear,
+                BuilderSlots = math.max(1, def.Builders),
+                BuildTicks = math.max(1, def.BuildTicks),
+                BuildProgress = built ? 1f : 0f,
+                Built = built,
             });
             return e;
         }
@@ -181,27 +186,70 @@ namespace EpochsUnbound.Settlement
             var c = em.GetComponentData<Citizen>(citizen);
             c.Task = CitizenTask.Ordered;
             c.Job = Entity.Null;
+            c.Manual = true;
             em.SetComponentData(citizen, c);
             var m = em.GetComponentData<CitizenMotion>(citizen);
             m.Target = to;
             em.SetComponentData(citizen, m);
         }
 
-        /// <summary>Direct order: work at a building. Fails if it has no free job slot or the citizen is a child.</summary>
+        /// <summary>Direct order: build it if under construction, otherwise work there. Fails if it has no free slot or the citizen is a child.</summary>
         public static bool OrderWork(EntityManager em, Entity citizen, Entity building)
         {
             if (!em.HasComponent<Citizen>(citizen) || !em.HasComponent<Building>(building)) return false;
             var b = em.GetComponentData<Building>(building);
             var c = em.GetComponentData<Citizen>(citizen);
             var rules = Single<SettlementRules>(em);
-            if (c.Job == building) { c.Task = CitizenTask.Idle; em.SetComponentData(citizen, c); return true; }
-            if (c.AgeTicks < rules.AdultAgeTicks || b.Workers >= b.JobSlots) return false;
+            if (c.Job == building) { c.Task = CitizenTask.Idle; c.Manual = true; em.SetComponentData(citizen, c); return true; }
+            if (c.AgeTicks < rules.AdultAgeTicks || b.Workers >= b.Slots) return false;
             b.Workers++; // reserve the slot until the next census
             em.SetComponentData(building, b);
             c.Job = building;
             c.Task = CitizenTask.Idle;
+            c.Manual = true;
             em.SetComponentData(citizen, c);
             return true;
+        }
+
+        public enum Task { Build, Farm, ChopWood, Idle, Auto }
+
+        /// <summary>
+        /// Task button: Build/Farm/ChopWood send the citizen to the nearest matching building with a free slot;
+        /// Idle stops work and keeps them off automatic assignment; Auto hands them back to automatic assignment.
+        /// </summary>
+        public static bool AssignTask(EntityManager em, Entity citizen, Task task)
+        {
+            if (!em.HasComponent<Citizen>(citizen)) return false;
+            var c = em.GetComponentData<Citizen>(citizen);
+            if (task == Task.Idle || task == Task.Auto)
+            {
+                c.Job = Entity.Null;
+                c.Task = CitizenTask.Idle;
+                c.Manual = task == Task.Idle;
+                em.SetComponentData(citizen, c);
+                return true;
+            }
+
+            float3 pos = em.GetComponentData<CitizenMotion>(citizen).Position;
+            using var q = em.CreateEntityQuery(ComponentType.ReadOnly<Building>());
+            using var entities = q.ToEntityArray(Allocator.Temp);
+            using var data = q.ToComponentDataArray<Building>(Allocator.Temp);
+            int best = -1;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < data.Length; i++)
+            {
+                var b = data[i];
+                bool match = task switch
+                {
+                    Task.Build => !b.Built,
+                    Task.Farm => b.Built && b.Kind == BuildingKind.Farm,
+                    _ => b.Built && b.Kind == BuildingKind.LumberCamp,
+                };
+                if (!match || b.Workers >= b.Slots || entities[i] == c.Job) continue;
+                float d = math.distancesq(b.Position.xz, pos.xz);
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best >= 0 && OrderWork(em, citizen, entities[best]);
         }
     }
 }

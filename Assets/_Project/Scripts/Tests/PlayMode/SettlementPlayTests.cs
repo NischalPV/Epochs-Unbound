@@ -36,10 +36,17 @@ namespace EpochsUnbound.Tests
             }
             Assert.AreEqual(SettlementOps.PlaceResult.Ok, placed, "no valid town centre site near spawn");
 
-            yield return Wait(1f);
+            // The town centre is a construction site: the starting citizens build it, then move in.
+            var group0 = Unity.Entities.World.DefaultGameObjectInjectionWorld.GetExistingSystemManaged<SimTickSystemGroup>();
+            group0.Clock.Speed = 8f;
             var colony = SettlementOps.GetColony(em);
+            float deadline = Time.realtimeSinceStartup + 40f;
+            while (!em.GetComponentData<Building>(colony.TownCentre).Built && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.IsTrue(em.GetComponentData<Building>(colony.TownCentre).Built, "starting citizens should finish the town centre");
+            yield return Wait(0.5f);
+            colony = SettlementOps.GetColony(em);
             Assert.AreEqual(controller.Settings.StartingCitizens, colony.Population);
-            Assert.AreEqual(colony.Population, colony.Population - colony.Homeless, "starting citizens live in the town centre");
+            Assert.AreEqual(0, colony.Homeless, "starting citizens live in the finished town centre");
 
             // Stress test: 10k citizens at x8 speed.
             var tc = em.GetComponentData<Building>(colony.TownCentre);

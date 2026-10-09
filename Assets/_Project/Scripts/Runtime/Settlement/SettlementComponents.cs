@@ -38,6 +38,7 @@ namespace EpochsUnbound.Settlement
     {
         public float Food, Wood;
         public int Population, Adults, Housing, Jobs, Employed, Homeless;
+        public int WorkSlots, Builders, Sites;   // built job slots, citizens building, buildings under construction
         public bool Starving;
         public float BirthProgress;
         public uint NextCitizenId;
@@ -59,6 +60,12 @@ namespace EpochsUnbound.Settlement
         public int Housing, JobSlots;
         public ResourceKind Produces;
         public float OutputPerWorkerPerTick;     // fertility / forest density already applied
+        public int BuilderSlots;
+        public float BuildTicks;                 // builder-ticks of work to finish construction
+        public float BuildProgress;              // 0..1
+        public bool Built;                       // only built buildings give housing, jobs and production
+        /// <summary>Open positions: builders while under construction, workers once built.</summary>
+        public readonly int Slots => Built ? JobSlots : BuilderSlots;
         // Recounted every tick by CensusSystem.
         public int Residents, Workers, Present;
     }
@@ -70,6 +77,7 @@ namespace EpochsUnbound.Settlement
         public float Health;                     // 0..1
         public Entity Home, Job;
         public CitizenTask Task;
+        public bool Manual;                      // player assigned a task: automatic job assignment leaves them alone
     }
 
     public struct CitizenMotion : IComponentData

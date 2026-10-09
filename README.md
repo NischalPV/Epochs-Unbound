@@ -25,11 +25,12 @@ Open the repo folder in Unity 6000.5.7f1, open `Assets/_Project/Scenes/Main.unit
 | 1-4 | Simulation speed x1, x2, x4, x8 |
 | T / H / F / L or HUD buttons | Place Town Centre / House / Farm / Lumber Camp (Shift keeps placing, right click cancels) |
 | Left click | Select a citizen (Shift adds) |
-| Right click with citizens selected | On a farm or lumber camp: work there. On the ground: walk there and stay |
+| Right click with citizens selected | On a construction site: build it. On a farm or lumber camp: work there. On the ground: walk there and stay |
+| Task buttons (citizens selected) | Build, Farm, Chop wood (nearest place with a free slot), Stay idle, Auto (back to automatic jobs) |
 | Esc | Cancel placement and clear selection |
-| F9 | Stress test: spawn 10,000 walking citizens |
+| F9 | Developer Mode only: stress test with 10,000 walking citizens |
 
-The game starts in Town Centre placement: pick flat, dry land. Ten citizens arrive, then build farms on fertile land (grassland is best) and lumber camps near forest. Idle adults fill job slots automatically; births need free housing and a food reserve; citizens die of old age or after half a year of starvation.
+The game starts in Town Centre placement: pick flat, dry land. Placed buildings are construction sites: they give nothing until builders finish them. Ten citizens arrive and build the Town Centre; then build farms on fertile land (grassland is best) and lumber camps near forest. Idle adults fill job slots automatically; births need free housing and a food reserve; citizens die of old age or after half a year of starvation.
 
 Tuning lives in `Assets/_Project/Settings` (world seed, chunk size, noise, streaming radius, camera speeds, tick rate). `Epochs Unbound > Rebuild Main Scene` regenerates the scene.
 

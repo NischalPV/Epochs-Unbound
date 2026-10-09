@@ -74,27 +74,35 @@ namespace EpochsUnbound.Settlement
 
             var rules = SystemAPI.GetSingleton<SettlementRules>();
             var buildings = SystemAPI.GetComponentLookup<Building>();
-            int population = 0, adults = 0, employed = 0, homeless = 0;
-            foreach (var c in SystemAPI.Query<RefRO<Citizen>>())
+            int population = 0, adults = 0, employed = 0, homeless = 0, builders = 0;
+            foreach (var c in SystemAPI.Query<RefRW<Citizen>>())
             {
                 population++;
                 if (c.ValueRO.AgeTicks >= rules.AdultAgeTicks) adults++;
                 if (buildings.HasComponent(c.ValueRO.Home)) buildings.GetRefRW(c.ValueRO.Home).ValueRW.Residents++;
                 else homeless++;
-                if (buildings.HasComponent(c.ValueRO.Job))
+                if (!buildings.HasComponent(c.ValueRO.Job)) continue;
+
+                ref var job = ref buildings.GetRefRW(c.ValueRO.Job).ValueRW;
+                if (job.Built && job.JobSlots == 0)
                 {
-                    employed++;
-                    ref var job = ref buildings.GetRefRW(c.ValueRO.Job).ValueRW;
-                    job.Workers++;
-                    if (c.ValueRO.Task == CitizenTask.Working) job.Present++;
+                    // Finished building a house or town centre: the builder is free again and back under auto control.
+                    c.ValueRW.Job = Entity.Null;
+                    c.ValueRW.Manual = false;
+                    continue;
                 }
+                employed++;
+                if (!job.Built) builders++;
+                job.Workers++;
+                if (c.ValueRO.Task == CitizenTask.Working) job.Present++;
             }
 
-            int housing = 0, jobs = 0;
+            int housing = 0, jobs = 0, workSlots = 0, sites = 0;
             foreach (var b in SystemAPI.Query<RefRO<Building>>())
             {
-                housing += b.ValueRO.Housing;
-                jobs += b.ValueRO.JobSlots;
+                if (b.ValueRO.Built) { housing += b.ValueRO.Housing; workSlots += b.ValueRO.JobSlots; }
+                else sites++;
+                jobs += b.ValueRO.Slots;
             }
 
             ref var colony = ref SystemAPI.GetSingletonRW<Colony>().ValueRW;
@@ -104,12 +112,15 @@ namespace EpochsUnbound.Settlement
             colony.Homeless = homeless;
             colony.Housing = housing;
             colony.Jobs = jobs;
+            colony.WorkSlots = workSlots;
+            colony.Builders = builders;
+            colony.Sites = sites;
         }
     }
 
     /// <summary>
     /// Automatic half of the hybrid control model: homeless citizens get the nearest free home,
-    /// idle adults fill the nearest open job slot. Citizens under a direct order are skipped.
+    /// idle adults fill the nearest open job or builder slot. Citizens the player has given a task are skipped.
     /// </summary>
     [UpdateInGroup(typeof(SimTickSystemGroup))]
     [UpdateAfter(typeof(CensusSystem))]
@@ -140,8 +151,8 @@ namespace EpochsUnbound.Settlement
             var freeJobs = new NativeArray<int>(data.Length, Allocator.Temp);
             for (int i = 0; i < data.Length; i++)
             {
-                freeHomes[i] = data[i].Housing - data[i].Residents;
-                freeJobs[i] = data[i].JobSlots - data[i].Workers;
+                freeHomes[i] = data[i].Built ? data[i].Housing - data[i].Residents : 0;
+                freeJobs[i] = data[i].Slots - data[i].Workers;   // builder slots while under construction
             }
 
             int adultAge = SystemAPI.GetSingleton<SettlementRules>().AdultAgeTicks;
@@ -154,7 +165,7 @@ namespace EpochsUnbound.Settlement
                     int i = Nearest(pos, data, freeHomes);
                     if (i >= 0) { c.ValueRW.Home = entities[i]; freeHomes[i]--; }
                 }
-                if (jobsFree && c.ValueRO.AgeTicks >= adultAge && c.ValueRO.Task != CitizenTask.Ordered && !buildingLookup.HasComponent(c.ValueRO.Job))
+                if (jobsFree && c.ValueRO.AgeTicks >= adultAge && !c.ValueRO.Manual && !buildingLookup.HasComponent(c.ValueRO.Job))
                 {
                     int i = Nearest(pos, data, freeJobs);
                     if (i >= 0) { c.ValueRW.Job = entities[i]; freeJobs[i]--; }
@@ -245,7 +256,7 @@ namespace EpochsUnbound.Settlement
         }
     }
 
-    /// <summary>Production by workers present at their building, food consumption, starvation flag.</summary>
+    /// <summary>Construction progress, production by workers present at their building, food consumption, starvation flag.</summary>
     [UpdateInGroup(typeof(SimTickSystemGroup))]
     [UpdateAfter(typeof(CitizenMotionSystem))]
     [BurstCompile]
@@ -258,8 +269,16 @@ namespace EpochsUnbound.Settlement
         {
             var rules = SystemAPI.GetSingleton<SettlementRules>();
             ref var colony = ref SystemAPI.GetSingletonRW<Colony>().ValueRW;
-            foreach (var b in SystemAPI.Query<RefRO<Building>>())
+            foreach (var b in SystemAPI.Query<RefRW<Building>>())
             {
+                if (!b.ValueRO.Built)
+                {
+                    // Construction: each builder on site adds one tick of work.
+                    ref var site = ref b.ValueRW;
+                    site.BuildProgress += site.Present / math.max(1f, site.BuildTicks);
+                    if (site.BuildProgress >= 1f) { site.BuildProgress = 1f; site.Built = true; }
+                    continue;
+                }
                 float output = b.ValueRO.Present * b.ValueRO.OutputPerWorkerPerTick;
                 if (b.ValueRO.Produces == ResourceKind.Food) colony.Food += output;
                 else if (b.ValueRO.Produces == ResourceKind.Wood) colony.Wood += output;

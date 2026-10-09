@@ -32,6 +32,8 @@ MonoBehaviour:
   - Name: Town Centre
     Kind: 0
     WoodCost: 0
+    BuildTicks: 4800
+    Builders: 8
     Size: {x: 16, y: 8, z: 16}
     Housing: 10
     Jobs: 0
@@ -41,6 +43,8 @@ MonoBehaviour:
   - Name: House
     Kind: 1
     WoodCost: 30
+    BuildTicks: 1200
+    Builders: 3
     Size: {x: 6, y: 4, z: 6}
     Housing: 6
     Jobs: 0
@@ -50,6 +54,8 @@ MonoBehaviour:
   - Name: Farm
     Kind: 2
     WoodCost: 40
+    BuildTicks: 1800
+    Builders: 4
     Size: {x: 30, y: 0.6, z: 30}
     Housing: 0
     Jobs: 5
@@ -59,6 +65,8 @@ MonoBehaviour:
   - Name: Lumber Camp
     Kind: 3
     WoodCost: 40
+    BuildTicks: 1800
+    Builders: 4
     Size: {x: 10, y: 4, z: 8}
     Housing: 0
     Jobs: 5
