@@ -24,9 +24,9 @@ namespace EpochsUnbound.Settlement
     public sealed class SettlementSettings : ScriptableObject
     {
         [Header("Time")]
-        [Tooltip("Sim ticks per game year (20 ticks = 1 s at x1).")]
-        public int TicksPerYear = 600;
-        [Tooltip("Sim ticks per day; citizens work for WorkFraction of it.")]
+        [Tooltip("Sim ticks per game year. The sim runs 20 ticks/s at x1, so 8400 = a 7-minute year.")]
+        public int TicksPerYear = 8400;
+        [Tooltip("Sim ticks per day (1200 = 1 minute at x1); citizens work for WorkFraction of it.")]
         public int DayTicks = 1200;
         [Range(0.1f, 0.9f)] public float WorkFraction = 0.6f;
 
@@ -35,7 +35,7 @@ namespace EpochsUnbound.Settlement
         public float AdultAge = 14f;
         public float LifespanMean = 60f;
         public float LifespanSpread = 12f;
-        public float BirthsPerAdultPerYear = 0.12f;
+        public float BirthsPerAdultPerYear = 0.2f;
         [Tooltip("Food eaten per citizen per year.")]
         public float FoodPerCitizenPerYear = 1f;
         [Tooltip("Births only happen while the store holds this many years of food per citizen.")]
@@ -46,15 +46,15 @@ namespace EpochsUnbound.Settlement
 
         [Header("Starting stock")]
         public float StartFood = 25f;
-        public float StartWood = 150f;
+        public float StartWood = 200f;
 
         [Header("Buildings")]
         public BuildingDef[] Buildings =
         {
             new() { Name = "Town Centre", Kind = BuildingKind.TownCentre, WoodCost = 0, Size = new(16, 8, 16), Housing = 10, Colour = new(0.75f, 0.68f, 0.55f) },
             new() { Name = "House", Kind = BuildingKind.House, WoodCost = 30, Size = new(6, 4, 6), Housing = 6, Colour = new(0.80f, 0.52f, 0.36f) },
-            new() { Name = "Farm", Kind = BuildingKind.Farm, WoodCost = 40, Size = new(30, 0.6f, 30), Jobs = 5, Produces = ResourceKind.Food, OutputPerWorkerPerYear = 3f, Colour = new(0.85f, 0.78f, 0.35f) },
-            new() { Name = "Lumber Camp", Kind = BuildingKind.LumberCamp, WoodCost = 40, Size = new(10, 4, 8), Jobs = 5, Produces = ResourceKind.Wood, OutputPerWorkerPerYear = 20f, Colour = new(0.45f, 0.30f, 0.18f) },
+            new() { Name = "Farm", Kind = BuildingKind.Farm, WoodCost = 40, Size = new(30, 0.6f, 30), Jobs = 5, Produces = ResourceKind.Food, OutputPerWorkerPerYear = 4f, Colour = new(0.85f, 0.78f, 0.35f) },
+            new() { Name = "Lumber Camp", Kind = BuildingKind.LumberCamp, WoodCost = 40, Size = new(10, 4, 8), Jobs = 5, Produces = ResourceKind.Wood, OutputPerWorkerPerYear = 60f, Colour = new(0.45f, 0.30f, 0.18f) },
         };
 
         public BuildingDef Def(BuildingKind kind) => Array.Find(Buildings, b => b.Kind == kind);

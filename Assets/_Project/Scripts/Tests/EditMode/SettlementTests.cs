@@ -28,6 +28,7 @@ namespace EpochsUnbound.Tests
             _group.SortSystems();
             _group.Clock = new SimClock(20, 1);
             _settings = ScriptableObject.CreateInstance<SettlementSettings>();
+            _settings.TicksPerYear = 600; // short year keeps tests fast; rules are per year so behaviour is the same
             SettlementOps.CreateColony(Em, _settings, null);
         }
 

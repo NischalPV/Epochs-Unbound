@@ -22,7 +22,7 @@ namespace EpochsUnbound.CameraControl
         [Header("Zoom")]
         public float MinDistance = 15f;
         public float MaxDistance = 6000f;
-        public float StartDistance = 400f;
+        public float StartDistance = 90f;
         [Tooltip("Fraction of the current distance moved per wheel notch.")]
         [Range(0.05f, 0.5f)] public float ZoomStep = 0.15f;
         [Tooltip("Higher is snappier.")]

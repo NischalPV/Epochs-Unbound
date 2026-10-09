@@ -23,6 +23,6 @@ MonoBehaviour:
   StartPitch: 50
   MinDistance: 15
   MaxDistance: 6000
-  StartDistance: 400
+  StartDistance: 90
   ZoomStep: 0.15
   Smoothing: 12

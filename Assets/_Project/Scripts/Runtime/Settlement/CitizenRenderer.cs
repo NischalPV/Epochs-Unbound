@@ -67,6 +67,7 @@ namespace EpochsUnbound.Settlement
                 Motions = motions,
                 Citizens = citizens,
                 AdultAge = adultAge,
+                CameraPos = Camera.main != null ? (float3)Camera.main.transform.position : float3.zero,
                 Alpha = (float)math.saturate(_group.Clock.Alpha),
                 Adults = adults,
                 Children = children,
@@ -106,6 +107,7 @@ namespace EpochsUnbound.Settlement
             [ReadOnly] public NativeArray<Citizen> Citizens;
             public int AdultAge;
             public float Alpha;
+            public float3 CameraPos;
             public NativeList<Matrix4x4> Adults, Children;
 
             public void Execute()
@@ -115,7 +117,8 @@ namespace EpochsUnbound.Settlement
                     var m = Motions[i];
                     float3 p = math.lerp(m.Previous, m.Position, Alpha);
                     bool adult = Citizens[i].AgeTicks >= AdultAge;
-                    float h = adult ? 0.85f : 0.55f;
+                    // Grow with distance beyond 60 m so citizens stay visible when zoomed out (not true scale).
+                    float h = (adult ? 0.85f : 0.55f) * math.max(1f, math.distance(CameraPos, p) / 60f);
                     var mat = float4x4.TRS(p + new float3(0, h, 0), quaternion.identity, new float3(h * 0.5f, h, h * 0.5f));
                     (adult ? ref Adults : ref Children).Add(mat);
                 }

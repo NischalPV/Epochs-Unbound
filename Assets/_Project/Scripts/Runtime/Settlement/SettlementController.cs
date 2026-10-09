@@ -31,8 +31,15 @@ namespace EpochsUnbound.Settlement
         float3 _hit;
         Rect _panel;
         bool _started;
+        GUIStyle _hintStyle;
         SettlementRules _rules;
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+
+        /// <summary>Building currently being placed, if any.</summary>
+        public BuildingKind? Placing => _placing?.Kind;
+
+        /// <summary>Status line shown in the HUD.</summary>
+        public string Message => _message;
 
         void Start()
         {
@@ -218,9 +225,23 @@ namespace EpochsUnbound.Settlement
         {
             if (!_started) return;
             var c = SettlementOps.GetColony(_em);
-            _panel = new Rect(10, Screen.height - 190, 560, 180);
-            GUI.Box(_panel, GUIContent.none);
-            GUILayout.BeginArea(new Rect(_panel.x + 8, _panel.y + 6, _panel.width - 16, _panel.height - 12));
+
+            // Scale the HUD with screen height so it stays readable on large displays.
+            float scale = Mathf.Max(1f, Screen.height / 800f);
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+            float w = Screen.width / scale, h = Screen.height / scale;
+
+            string hint = Hint(c);
+            if (hint != null)
+            {
+                _hintStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 22, wordWrap = true, alignment = TextAnchor.MiddleCenter };
+                GUI.Box(new Rect(w * 0.5f - 330, 50, 660, 64), hint, _hintStyle);
+            }
+
+            var panel = new Rect(10, h - 190, 640, 180);
+            _panel = new Rect(panel.x * scale, panel.y * scale, panel.width * scale, panel.height * scale);
+            GUI.Box(panel, GUIContent.none);
+            GUILayout.BeginArea(new Rect(panel.x + 8, panel.y + 6, panel.width - 16, panel.height - 12));
             GUILayout.Label($"Food {c.Food:0.0}   Wood {c.Wood:0}   Population {c.Population} / {c.Housing} housing   " +
                             $"Jobs {c.Employed} / {c.Jobs}   Births {c.Births}  Deaths {c.Deaths}" + (c.Starving ? "   STARVING" : ""));
             GUILayout.BeginHorizontal();
@@ -231,6 +252,26 @@ namespace EpochsUnbound.Settlement
             GUILayout.Label(_message);
             GUILayout.Label("T/H/F/L build (Shift keeps placing)   LMB select (Shift adds)   RMB on farm/camp: work there, on ground: move   Esc cancel   F9 spawn 10k");
             GUILayout.EndArea();
+        }
+
+        /// <summary>Next step for a new player, shown as a banner until the basics are in place.</summary>
+        string Hint(Colony c)
+        {
+            if (_placing != null && _placing.Kind == BuildingKind.TownCentre)
+                return "Move the mouse over flat, dry land and LEFT CLICK to place your Town Centre (green = OK, red = not allowed)";
+            if (!_em.Exists(c.TownCentre)) return "Press T (or the Town Centre button) to place your Town Centre";
+            if (!Has(BuildingKind.Farm)) return "Your people need food: press F and place a Farm on green grassland";
+            if (!Has(BuildingKind.LumberCamp)) return "Press L and place a Lumber Camp next to dark-green forest for wood";
+            if (c.Housing - c.Population < 2 && c.Population < 20) return "Press H to build Houses so your population can grow";
+            return null;
+        }
+
+        bool Has(BuildingKind kind)
+        {
+            using var q = _em.CreateEntityQuery(typeof(Building));
+            using var data = q.ToComponentDataArray<Building>(Unity.Collections.Allocator.Temp);
+            foreach (var b in data) if (b.Kind == kind) return true;
+            return false;
         }
 
         string SelectionText()

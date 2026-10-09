@@ -12,20 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8fff3abcb711734e89069121aa00e55, type: 3}
   m_Name: SettlementSettings
   m_EditorClassIdentifier: EpochsUnbound::EpochsUnbound.Settlement.SettlementSettings
-  TicksPerYear: 600
+  TicksPerYear: 8400
   DayTicks: 1200
   WorkFraction: 0.6
   StartingCitizens: 10
   AdultAge: 14
   LifespanMean: 60
   LifespanSpread: 12
-  BirthsPerAdultPerYear: 0.12
+  BirthsPerAdultPerYear: 0.2
   FoodPerCitizenPerYear: 1
   FoodReserveYears: 0.5
   StarveYears: 0.5
   WalkSpeed: 6
   StartFood: 25
-  StartWood: 150
+  StartWood: 200
   Buildings:
   - Name: Town Centre
     Kind: 0
@@ -52,7 +52,7 @@ MonoBehaviour:
     Housing: 0
     Jobs: 5
     Produces: 1
-    OutputPerWorkerPerYear: 3
+    OutputPerWorkerPerYear: 4
     Colour: {r: 0.85, g: 0.78, b: 0.35, a: 1}
   - Name: Lumber Camp
     Kind: 3
@@ -61,5 +61,5 @@ MonoBehaviour:
     Housing: 0
     Jobs: 5
     Produces: 2
-    OutputPerWorkerPerYear: 20
+    OutputPerWorkerPerYear: 60
     Colour: {r: 0.45, g: 0.3, b: 0.18, a: 1}
