@@ -50,13 +50,17 @@ namespace EpochsUnbound.Settlement
         public float StartFood = 25f;
         public float StartWood = 200f;
 
+        [Header("Developer")]
+        [Tooltip("Enables F9: spawn 10,000 citizens and free food, ignoring housing and resources. For performance testing only.")]
+        public bool DeveloperMode;
+
         [Header("Buildings")]
         public BuildingDef[] Buildings =
         {
             new() { Name = "Town Centre", Kind = BuildingKind.TownCentre, WoodCost = 0, Size = new(16, 8, 16), Housing = 10, Colour = new(0.75f, 0.68f, 0.55f) },
             new() { Name = "House", Kind = BuildingKind.House, WoodCost = 30, Size = new(6, 4, 6), Housing = 6, Colour = new(0.80f, 0.52f, 0.36f) },
             new() { Name = "Farm", Kind = BuildingKind.Farm, WoodCost = 40, Size = new(30, 0.6f, 30), Jobs = 5, Produces = ResourceKind.Food, OutputPerWorkerPerYear = 4f, Colour = new(0.85f, 0.78f, 0.35f) },
-            new() { Name = "Lumber Camp", Kind = BuildingKind.LumberCamp, WoodCost = 40, Size = new(10, 4, 8), Jobs = 5, Produces = ResourceKind.Wood, OutputPerWorkerPerYear = 60f, Colour = new(0.45f, 0.30f, 0.18f) },
+            new() { Name = "Lumber Camp", Kind = BuildingKind.LumberCamp, WoodCost = 40, Size = new(10, 4, 8), Jobs = 5, Produces = ResourceKind.Wood, OutputPerWorkerPerYear = 30f, Colour = new(0.45f, 0.30f, 0.18f) },
         };
 
         public BuildingDef Def(BuildingKind kind) => Array.Find(Buildings, b => b.Kind == kind);

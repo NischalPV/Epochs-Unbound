@@ -40,6 +40,13 @@ namespace EpochsUnbound.Tests
             PressAndRelease(keyboard.fKey);
             yield return null;
             Assert.AreEqual(BuildingKind.Farm, controller.Placing, "F should start farm placement");
+
+            // F9 stress test is a developer cheat: off by default, so no free citizens.
+            PressAndRelease(keyboard.escapeKey);
+            PressAndRelease(keyboard.f9Key);
+            end = Time.realtimeSinceStartup + 0.5f;
+            while (Time.realtimeSinceStartup < end) yield return null;
+            Assert.AreEqual(controller.Settings.StartingCitizens, SettlementOps.GetColony(em).Population, "F9 must do nothing outside developer mode");
         }
     }
 }

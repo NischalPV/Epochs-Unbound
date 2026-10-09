@@ -63,7 +63,7 @@ namespace EpochsUnbound.Settlement
             if (kb.fKey.wasPressedThisFrame) BeginPlacing(BuildingKind.Farm);
             if (kb.lKey.wasPressedThisFrame) BeginPlacing(BuildingKind.LumberCamp);
             if (kb.escapeKey.wasPressedThisFrame) { CancelPlacing(); Citizens.Selected.Clear(); }
-            if (kb.f9Key.wasPressedThisFrame) StressTest();
+            if (kb.f9Key.wasPressedThisFrame && Settings.DeveloperMode) StressTest();
 
             Vector2 mp = mouse.position.ReadValue();
             bool overUi = _panel.Contains(new Vector2(mp.x, Screen.height - mp.y));
@@ -98,9 +98,10 @@ namespace EpochsUnbound.Settlement
 
             var result = SettlementOps.CanPlace(_em, _placing, _hit, _terrain, out float yield);
             PlaceBox(_ghost, _placing, _hit, result == SettlementOps.PlaceResult.Ok ? new Color(0.3f, 0.9f, 0.3f) : new Color(0.9f, 0.25f, 0.2f));
+            float wood = SettlementOps.GetColony(_em).Wood;
             _message = result == SettlementOps.PlaceResult.Ok
-                ? $"{_placing.Name}: {Describe(_placing, yield)}  (left click to build, right click to cancel)"
-                : $"{_placing.Name}: {Reason(result)}";
+                ? $"{_placing.Name}: {Describe(_placing, yield)}, cost {_placing.WoodCost} wood (you have {wood:0})  - left click to build, right click to cancel"
+                : $"{_placing.Name}: {Reason(result, _placing, wood)}";
 
             if (!mouse.leftButton.wasPressedThisFrame || result != SettlementOps.PlaceResult.Ok) return;
             float3 at = new float3(_hit.x, TerrainSampler.SurfaceHeight(_hit.xz, _terrain), _hit.z);
@@ -108,22 +109,28 @@ namespace EpochsUnbound.Settlement
 
             var box = CreateBox(_placing, _placing.Name);
             PlaceBox(box, _placing, at, _placing.Colour);
-            _message = $"Built {_placing.Name}.";
-            if (!kb.shiftKey.isPressed) CancelPlacing(); // hold Shift to keep placing
+            _message = $"Built {_placing.Name} for {_placing.WoodCost} wood.";
+            if (SettlementOps.GetColony(_em).Wood < _placing.WoodCost)
+            {
+                _message += $" Not enough wood for another (need {_placing.WoodCost}).";
+                CancelPlacing();
+            }
+            else if (!kb.shiftKey.isPressed) CancelPlacing(); // hold Shift to keep placing
         }
 
         static string Describe(BuildingDef def, float yield) => def.Kind switch
         {
-            BuildingKind.Farm => $"fertility {yield:P0}, cost {def.WoodCost} wood",
-            BuildingKind.LumberCamp => $"forest {yield:P0}, cost {def.WoodCost} wood",
-            _ => $"cost {def.WoodCost} wood",
+            BuildingKind.Farm => $"fertility {yield:P0}",
+            BuildingKind.LumberCamp => $"forest {yield:P0}",
+            BuildingKind.House => $"houses {def.Housing}",
+            _ => "OK",
         };
 
-        static string Reason(SettlementOps.PlaceResult r) => r switch
+        static string Reason(SettlementOps.PlaceResult r, BuildingDef def, float wood) => r switch
         {
             SettlementOps.PlaceResult.NeedTownCentre => "build a Town Centre first",
-            SettlementOps.PlaceResult.OnlyOneTownCentre => "you already have a Town Centre",
-            SettlementOps.PlaceResult.NotEnoughWood => "not enough wood",
+            SettlementOps.PlaceResult.OnlyOneTownCentre => "only one Town Centre is allowed for now",
+            SettlementOps.PlaceResult.NotEnoughWood => $"not enough wood: need {def.WoodCost}, you have {wood:0}",
             SettlementOps.PlaceResult.Water => "must be on dry land",
             SettlementOps.PlaceResult.TooSteep => "ground too steep",
             SettlementOps.PlaceResult.Overlaps => "overlaps another building",
@@ -143,9 +150,9 @@ namespace EpochsUnbound.Settlement
 
         void PlaceBox(GameObject go, BuildingDef def, float3 at, Color colour)
         {
-            float y = TerrainSampler.SurfaceHeight(at.xz, _terrain);
-            go.transform.position = new Vector3(at.x, y + def.Size.y * 0.5f, at.z);
-            go.transform.localScale = def.Size;
+            SettlementOps.VisualExtent(def, at, _terrain, out float bottom, out float top);
+            go.transform.position = new Vector3(at.x, (bottom + top) * 0.5f, at.z);
+            go.transform.localScale = new Vector3(def.Size.x, top - bottom, def.Size.z);
             _mpb.SetColor(BaseColor, colour);
             go.GetComponent<Renderer>().SetPropertyBlock(_mpb);
         }
@@ -216,7 +223,7 @@ namespace EpochsUnbound.Settlement
             colony = SettlementOps.GetColony(_em);
             colony.Food += StressTestCount * 10f; // keep them fed so the test measures load, not a famine
             SettlementOps.SetColony(_em, colony);
-            _message = $"Spawned {StressTestCount} citizens.";
+            _message = $"DEV: stress test spawned {StressTestCount} citizens and free food, ignoring housing and resources.";
         }
 
         // ---------- HUD ----------
@@ -246,11 +253,16 @@ namespace EpochsUnbound.Settlement
                             $"Jobs {c.Employed} / {c.Jobs}   Births {c.Births}  Deaths {c.Deaths}" + (c.Starving ? "   STARVING" : ""));
             GUILayout.BeginHorizontal();
             foreach (var def in Settings.Buildings)
-                if (GUILayout.Button($"{def.Name} ({def.WoodCost})")) BeginPlacing(def.Kind);
+            {
+                bool tcBlocked = def.Kind == BuildingKind.TownCentre && _em.Exists(c.TownCentre);
+                GUI.enabled = c.Wood >= def.WoodCost && !tcBlocked;
+                if (GUILayout.Button($"{def.Name} ({def.WoodCost} wood)")) BeginPlacing(def.Kind);
+            }
+            GUI.enabled = true;
             GUILayout.EndHorizontal();
             GUILayout.Label(SelectionText());
             GUILayout.Label(_message);
-            GUILayout.Label("T/H/F/L build (Shift keeps placing)   LMB select (Shift adds)   RMB on farm/camp: work there, on ground: move   Esc cancel   F9 spawn 10k");
+            GUILayout.Label("T/H/F/L build (Shift keeps placing)   LMB select (Shift adds)   RMB on farm/camp: work there, on ground: move   Esc cancel" + (Settings.DeveloperMode ? "   DEV: F9 stress test (ignores resources)" : ""));
             GUILayout.EndArea();
         }
 

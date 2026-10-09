@@ -115,6 +115,28 @@ namespace EpochsUnbound.Settlement
             return siteYield <= 0f ? PlaceResult.PoorSite : PlaceResult.Ok;
         }
 
+        /// <summary>
+        /// Vertical extent of a building's visual so it never floats: the base sinks to the lowest ground in the
+        /// footprint (a foundation skirt); the roof sits on the highest ground (farms: on the average, so a field
+        /// hugs the slope rather than standing on a platform).
+        /// </summary>
+        public static void VisualExtent(BuildingDef def, float3 pos, in TerrainParams terrain, out float bottom, out float top)
+        {
+            const int n = 7;
+            float min = float.MaxValue, max = float.MinValue, sum = 0;
+            for (int z = 0; z < n; z++)
+            for (int x = 0; x < n; x++)
+            {
+                var offset = new float2(x / (n - 1f) - 0.5f, z / (n - 1f) - 0.5f) * new float2(def.Size.x, def.Size.z);
+                float h = TerrainSampler.SurfaceHeight(pos.xz + offset, terrain);
+                min = math.min(min, h);
+                max = math.max(max, h);
+                sum += h;
+            }
+            bottom = min - 0.5f;
+            top = (def.Kind == BuildingKind.Farm ? sum / (n * n) : max) + def.Size.y;
+        }
+
         public static float Radius(BuildingDef def) => math.length(new float2(def.Size.x, def.Size.z)) * 0.5f;
 
         /// <summary>Validates, pays and creates the building. A town centre also brings the starting citizens.</summary>

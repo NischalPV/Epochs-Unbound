@@ -27,6 +27,7 @@ MonoBehaviour:
   WalkSpeed: 6
   StartFood: 25
   StartWood: 200
+  DeveloperMode: 0
   Buildings:
   - Name: Town Centre
     Kind: 0
@@ -62,5 +63,5 @@ MonoBehaviour:
     Housing: 0
     Jobs: 5
     Produces: 2
-    OutputPerWorkerPerYear: 60
+    OutputPerWorkerPerYear: 30
     Colour: {r: 0.45, g: 0.3, b: 0.18, a: 1}
